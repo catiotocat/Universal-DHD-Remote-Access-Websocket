@@ -1,16 +1,12 @@
 # Universal DHD Remote Access Documentation
 
-> The URL for the websocket is `wss://catio.merith.xyz/ws/`
+> The Public websocket URL is `wss://catio.merith.xyz/ws/`
 
 The Universal DHD uses a websocket server to handle remote access functionality.
 
 ## Auth Flow
 
-Upon accepting a connection the server will send `INPUT USER`.
-
-In order to use remote access, the client must respond with `ws-dev-user`.
-
-The server will respond with another prompt: `INPUT KEY`.
+The server will prompt the user: `INPUT USER`.
 
 The client should respond with the access key to be used for authentication. This key will determine what stargates are available for the client to control. All stargate data will be provided regardless of access key.
 
@@ -20,9 +16,8 @@ Once the server recieves the access key, it will immediatly begin sending data t
 
 All messages sent by a client to the server should be in plain text.
 
-There are 3 special commands that can be sent by any client at any time.
+There are 2 special commands that can be sent by any client at any time.
 
-- `-API` - Tells the server to make a stargate api request. Results in a Stargate API Data message being sent to all clients.
 - `-SLOTS` - Tells the server to immediatly send out Permission Information messages to all clients.
 - `-QUERY` - Tells the server to query information from all connected stargates. Results in many Stargate Slot Information messages being sent to all clients.
 
@@ -54,12 +49,11 @@ These commands will be blocked if the client does not have permission to control
 
 The server will send only JSON Formatted messages to the client.
 
-These messages can be split into 4 categories:
+These messages can be split into 3 categories:
 
 - KeepAlive Message
 - Stargate Slot Information
 - Permission Information
-- Stargate API Data
 
 ### KeepAlive Message Structure
 
@@ -141,10 +135,3 @@ This message type does not require any response and is sent at least once every 
 |`defined`|int array|List of all pre-registered slots in the server config|Use this alongside `online` to form a full list of existing slots|
 |`allowed`|int array|List of all slot IDs the client is currently allowed to send commands to||
 |`online`|int array|List of all currently online slots|Use this alongside `defined` to form a full list of existing slots|
-
-### Stargate API Data Message Structure
-
->This message type does not provide a `type` field.  
-It instead directly provides the data from a Stargate API Query.
-
-See [Stargate API Documentation](https://docs.rxserver.net/universe/public_api/stargate/stargates)

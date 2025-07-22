@@ -223,6 +223,7 @@ async def handler(websocket):
 						except:
 							pass
 						print("Stargate timed out!")
+						print("Slot: "+str(item))
 						break
 					except Exception as ex:
 						print("\033[91mException in stargate handler loop\033[0m")
