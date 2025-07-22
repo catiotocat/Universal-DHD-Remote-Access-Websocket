@@ -1,3 +1,6 @@
+-- This program was designed to run inside of CraftOS-PC
+-- You can download CraftOS-PC from https://www.craftos-pc.cc/
+
 settings.define("resoniteLink.accessKey",{
     description="Access Key for the webocket server", 
     default = "ws-dev-public", 
@@ -59,6 +62,7 @@ if argHelp then
     print("VALID ARGUMENTS LIST")
     print("-K <key> - sets the access key the program will use for authentication")
     print("-U - updates the program")
+	print("-URL <ws url> sets the websocket url to use.")
     print("-N - disables the automatic update check")
     print("-L - runs the program in a loop.")
     print("-D - enable debugging messages")

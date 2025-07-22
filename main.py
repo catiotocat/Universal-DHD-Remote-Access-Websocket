@@ -5,7 +5,7 @@ import aiohttp
 import signal
 import os
 import json
-from websockets.server import serve
+from websockets.asyncio.server import serve
 global apiRequested
 apiRequested = False
 connected = []
@@ -380,7 +380,7 @@ async def main():
 	# pingTask = asyncio.create_task(pingPong())
 	loop = asyncio.get_running_loop()
 	stop = loop.create_future()
-	loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
+	# loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
 	port = int(os.environ.get("PORT","8059"))
 	async with serve(handler,"",port):
 		await stop
