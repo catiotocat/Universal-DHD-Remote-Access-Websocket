@@ -10,16 +10,18 @@ from websockets.asyncio.server import serve
 # apiRequested = False
 connected = []
 
+publicAccessKey = "public"
+adminAccessKey = "admin"
+
 mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
 luaFilePath = mypath+"/client.lua"
 
 headlessConfig = []
 defaultconfig = {
-		"key":"ws-dev-public",
+		"key":publicAccessKey,
 		"slotListType":"whitelist",
 		"slotList":[],
-		"allowJSON":False,
 		"canControlExtras":False,
 		"allowAddresses":[],
 		"keyEnabled":True,
@@ -29,20 +31,19 @@ clientConfig = [
 		"key":"internal-stargate-identity",
 		"slotListType":"blacklist",
 		"slotList":[],
-		"allowJSON":False,
 		"canControlExtras":False,
 		"allowAddresses":[],
 		"keyEnabled":False,
 	},
+	defaultconfig,
 	{
-		"key":"ws-dev-public",
-		"slotListType":"whitelist",
+		"key":adminAccessKey,
+		"slotListType":"blacklist",
 		"slotList":[],
-		"allowJSON":False,
-		"canControlExtras":False,
+		"canControlExtras":True,
 		"allowAddresses":[],
 		"keyEnabled":True,
-	},
+	}
 ]
 
 requiredSlots = []
@@ -133,7 +134,7 @@ async def broadcastPerms():
 					if not s in requiredSlots:
 						if not s in allowedSlots:
 							if str(s) in keyTable:
-								if keyTable[str(s)] == client["key"] or keyTable[str(s)]=="ws-dev-public":
+								if keyTable[str(s)] == client["key"] or keyTable[str(s)]==publicAccessKey:
 									allow = True
 					if allow:
 						allowedSlots.append(s)
@@ -275,13 +276,8 @@ async def handler(websocket):
 						async with asyncio.timeout(30):
 							msg = await websocket.recv()
 						await websocket.send('{"type":"keepalive"}')
-						if msg.startswith("{") and msg.endswith("}") and auth["allowJSON"] == False:
-							print("JSON Perms Denied: "+key)
-						elif msg.startswith("{") and msg.endswith("}"):
-							await transmit(msg)
-						# elif msg == "-API":
-						# 	global apiRequested
-						# 	apiRequested = True
+						if msg.startswith("{") and msg.endswith("}"):
+							print("Blocked JSON From Client: "+key)
 						elif msg == "-SLOTS":
 							await broadcastPerms()
 						elif msg == "-QUERY":
@@ -319,7 +315,7 @@ async def handler(websocket):
 									if not s in requiredSlots:
 										if not s in allowedSlots:
 											if str(s) in keyTable:
-												if keyTable[str(s)] == key or keyTable[str(s)]=="ws-dev-public":
+												if keyTable[str(s)] == key or keyTable[str(s)]==publicAccessKey:
 													allow = True
 									if allow:
 										allowedSlots.append(s)

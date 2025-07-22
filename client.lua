@@ -3,7 +3,7 @@
 
 settings.define("resoniteLink.accessKey",{
     description="Access Key for the webocket server", 
-    default = "ws-dev-public", 
+    default = "public", 
     type="string"
 })
 settings.define("resoniteLink.websocketUrl",{
