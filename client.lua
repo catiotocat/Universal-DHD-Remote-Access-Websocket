@@ -6,9 +6,9 @@ settings.define("resoniteLink.accessKey",{
     default = "ws-dev-public", 
     type="string"
 })
-settings.define("resoniteLink.websocketURL",{
+settings.define("resoniteLink.websocketUrl",{
 	description="Websocket URL for the server",
-	default="wss://catio.merith.xyz/ws/",
+	default="ws://localhost:8059/",
 	type="string"
 })
 settings.define("resoniteLink.allowUpdates",{
@@ -25,12 +25,12 @@ local argUpdate = false
 local argNoUpdate = false
 myArgs = ""
 local argKey = nil
+local argUrl = nil
 local argHelp = false
 local argDebug = false
 
 local wasKeyword = nil
 
-local wsURL = "wss://catio.merith.xyz/ws/"
 local sgURL = "https://api.rxserver.net/stargates/"
 
 if not settings.get("resoniteLink.allowUpdates") then
@@ -41,10 +41,14 @@ for _, arg in pairs(args) do
     if wasKeyword then
         if wasKeyword == "K" then
             argKey = arg
-        end
+		elseif wasKeyword == "W" then
+			argUrl = arg
+		end
         wasKeyword = nil
     elseif arg == "-K" then
         wasKeyword = "K"
+	elseif arg == "-W" then
+		wasKeyword = "W"
     elseif arg == "-U" then
         argUpdate = true
     elseif arg == "-N" then
@@ -62,7 +66,7 @@ if argHelp then
     print("VALID ARGUMENTS LIST")
     print("-K <key> - sets the access key the program will use for authentication")
     print("-U - updates the program")
-	print("-URL <ws url> sets the websocket url to use.")
+	print("-W <ws url> sets the websocket url to use.")
     print("-N - disables the automatic update check")
     print("-L - runs the program in a loop.")
     print("-D - enable debugging messages")
@@ -70,22 +74,21 @@ if argHelp then
     return
 end
 
+local wsURL = argUrl or settings.get("resoniteLink.websocketUrl")
+
 function update()
     print("Checking for Updates...")
-    local ws,err = http.websocket(string.sub(wsURL,1,-2))
+    local ws,err = http.websocket(wsURL)
     if not ws then 
         printError("Update Failed")
         printError(err)
         return
     end
 	ws.receive()
-    ws.send("ws-dev-get")
-	ws.receive()
-    ws.send("lua/client.lua")
+    ws.send("-UPDATE")
     local fileConts = ws.receive()
-    ws.send("-LOGOUT")
-    os.pullEvent("websocket_closed")
-	if fileConts ~= "File not Found" and fileConts ~= "Access Denied." then
+	local success = false
+	if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 		local f = fs.open(shell.getRunningProgram(),"r")
 		local og = f.readAll()
 		f.close()
@@ -94,12 +97,16 @@ function update()
 			f.write(fileConts)
 			f.close()
 			print("Update Completed")
-			return true
+			success = true
 		else
 			print("Already Up To Date")
-			return false
 		end
+	else
+		printError(fileConts)
 	end
+	print("Waiting for connection to close...")
+    os.pullEvent("websocket_closed")
+	return success
 end
 
 if argUpdate then
@@ -118,7 +125,9 @@ end
 if argDebug then
     myArgs = myArgs.." -D"
 end
-
+if argUrl then
+	myArgs = myArgs.." -W "..argUrl
+end
 local loopEnd = false
 if argLoop then
     repeat
@@ -133,6 +142,9 @@ if argLoop then
 		if not loopEnd then
 			if argKey then
 				layeredArgs = layeredArgs.."-K "..argKey.." "
+			end
+			if argUrl then
+				layeredArgs = layeredArgs.."-W "..argUrl.." "
 			end
 			if argDebug then
 				layeredArgs = layeredArgs.."-D "
@@ -153,7 +165,7 @@ if not argNoUpdate then
 	end
 end
 
-activeSlot = 1
+activeSlot = 0
 local accessKey = argKey or settings.get("resoniteLink.accessKey")
 
 isRunning = true
@@ -1117,14 +1129,9 @@ end
 local function parseWS(json)
     table.insert(callChain,{"parseWS",json})
 	if json == "INPUT USER" then
-		ws.send("ws-dev-user")
-        table.remove(callChain,#callChain)
-		return
-	elseif json == "INPUT KEY" then
 		ws.send(accessKey)
 		getAPI()
 		tmr = os.startTimer(30)
-		pcall(ws.send,"-SLOTS")
         table.remove(callChain,#callChain)
 		return
 	elseif json == "-PING" then
@@ -1136,7 +1143,7 @@ local function parseWS(json)
         table.remove(callChain,#callChain)
         return 
     end	
-    if x.defined then
+    if x.type == "perms" then
         writeDebugDialog("perms obtained from server")
 		for i=1,#x.defined do
 			if not wsTbl[tostring(x.defined[i])] then
@@ -1172,7 +1179,7 @@ local function parseWS(json)
             activeSlot = highestSlot
         end
 		drawMain()
-	elseif x.gateStatus then
+	elseif x.type == "stargate" then
 		if x.slot > maxSlot then
 			maxSlot = x.slot
 		end
@@ -1188,9 +1195,9 @@ local function parseWS(json)
 		end
 		wsTbl[tostring(x.slot)] = x
 		drawMain()
-	elseif not x.type then
-		parseAPI(json)
-		writeDebugDialog("parsing api data from websocket")
+	-- elseif not x.type then
+	-- 	parseAPI(json)
+	-- 	writeDebugDialog("parsing api data from websocket")
 	end
     table.remove(callChain,#callChain)
 end
@@ -1441,8 +1448,8 @@ local function main()
     		parseAPI(event[3].readAll())
     		writeDebugDialog("api fetch success.")
     	elseif event[1] == "http_failure" and event[2] == sgURL then
-    	    writeDebugDialog("api fetch failure. using fallback.")
-    	    ws.send("-API")
+    	    writeDebugDialog("api fetch failure.")
+    	    -- ws.send("-API")
     	elseif event[1] == "mouse_click" then
     		mouseHandler(event[3],event[4])
     	elseif event[1] == "key" then

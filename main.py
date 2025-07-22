@@ -1,18 +1,18 @@
 #!/usr/bin/env python
 
 import asyncio
-import aiohttp
+# import aiohttp
 import signal
 import os
 import json
 from websockets.asyncio.server import serve
-global apiRequested
-apiRequested = False
+# global apiRequested
+# apiRequested = False
 connected = []
 
-fileDir = "./files/"
-luaFileDirectory = "./files/lua/"
-
+mypath = os.path.dirname(os.path.realpath(__file__))
+print(mypath)
+luaFilePath = mypath+"/client.lua"
 
 headlessConfig = []
 defaultconfig = {
@@ -46,7 +46,6 @@ clientConfig = [
 ]
 
 requiredSlots = []
-# requiredSlots = [0]
 maxSlotCount = 100
 connnectedSlots = []
 pingedSlots = []
@@ -54,41 +53,19 @@ pongedSlots = []
 addressTable = {}
 keyTable = {}
 
-async def pingPong():
-	while True:
-		await asyncio.sleep(30)
-		# ping
-		pingedSlots = connnectedSlots
-		pongedSlots = []
-		for item in connected:
-			try:
-				if item["slot"] > -1:
-					await item["handle"].send("-PING")
-			except:
-				connected.remove(item)
-		await asyncio.sleep(30)
-		for slot in pingedSlots:
-			if not slot in pongedSlots:
-				for x in connected:
-					if x["slot"]==slot:
-						try:
-							await x["handle"].close()
-						except:
-							connected.remove(x)
-		# kill
-
-async def apiFunc():
-	async with aiohttp.ClientSession() as session:
-		global apiRequested
-		while True:
-			await asyncio.sleep(5)
-			if apiRequested:
-				apiRequested = False
-				try:
-					async with session.get("https://api.rxserver.net/stargates/") as response:
-						await transmit(await response.text())
-				except:
-					apiRequested = True
+# async def apiFunc():
+# 	async with aiohttp.ClientSession() as session:
+# 		global apiRequested
+# 		while True:
+# 			await asyncio.sleep(5)
+# 			if apiRequested:
+# 				print("Making API Request...")
+# 				apiRequested = False
+# 				try:
+# 					async with session.get("https://api.rxserver.net/stargates/") as response:
+# 						await transmit(await response.text())
+# 				except:
+# 					apiRequested = True
 
 async def actuallyTransmit(message):
 	slot = None
@@ -167,118 +144,21 @@ async def broadcastPerms():
 				"type":"perms"
 			}
 			await client["handle"].send(json.dumps(raw))
+			print("\033[96mClient: "+client["key"]+" Perms: "+json.dumps(raw)+"\033[0m")
 
 async def handler(websocket):
 	await websocket.send("INPUT USER")
 	user = await websocket.recv()
-	if user == "ws-dev-user":
-		await websocket.send("INPUT KEY")
-		key = await websocket.recv()
-		auth = defaultconfig
-		for item in clientConfig:
-			if item["key"] == key:
-				auth = item
-		if auth["keyEnabled"]==True:
-			identity = {
-				"handle":websocket,
-				"key":key,
-				"slot":-1
-			}
-			connected.append(identity) #add the client to the list
-			await transmit("-QUERY") #this tells the headless instances to report all stargate data
-			while True:
-				try:
-					try:
-						async with asyncio.timeout(30):
-							msg = await websocket.recv()
-						await websocket.send('{"type":"keepalive"}')
-						if msg.startswith("{") and msg.endswith("}") and auth["allowJSON"] == False:
-							print("JSON Perms Denied: "+key)
-						elif msg.startswith("{") and msg.endswith("}"):
-							await transmit(msg)
-						elif msg == "-API":
-							global apiRequested
-							apiRequested = True
-						elif msg == "-SLOTS":
-							await broadcastPerms()
-						elif msg == "-QUERY":
-							await transmit("-QUERY")
-						else:
-							try:
-								slotNo = int(msg[0:2])
-								allowedSlots = []
-								if auth["slotListType"] == "blacklist":
-									for s in requiredSlots:
-										if not s in auth["slotList"]:
-											allowedSlots.append(s)
-								else:
-									for s in auth["slotList"]:
-										allowedSlots.append(s)
-								if auth["canControlExtras"]:
-									for s in connnectedSlots:
-										allow = False
-										if not s in requiredSlots:
-											allow = True
-										if allow:
-											allowedSlots.append(s)
-								else:
-									for s in connnectedSlots:
-										allow = False
-										if not s in requiredSlots:
-											if str(s) in addressTable:
-												for addr in auth["allowAddresses"]:
-													if addr == addressTable[str(s)]:
-														allow = True
-										if allow:
-											allowedSlots.append(s)
-								for s in connnectedSlots:
-									allow = False
-									if not s in requiredSlots:
-										if not s in allowedSlots:
-											if str(s) in keyTable:
-												if keyTable[str(s)] == key or keyTable[str(s)]=="ws-dev-public":
-													allow = True
-									if allow:
-										allowedSlots.append(s)
-								if slotNo in allowedSlots:
-									for item in connected:
-										if item["slot"] != -1:
-											if item["slot"] == slotNo:
-												msg = msg[2:]
-												await item["handle"].send(msg)
-							except Exception as ex:
-								print("Exception in command send function!")
-								print(type[ex])
-								print(ex.args)
-								print(ex)
-					except TimeoutError:
-						await websocket.send('{"type":"keepalive"}')
-				except:
-					try:
-						connected.remove(identity)
-					except:
-						pass
-					break
-		else: #if the access key was wrong, close the connection
-			await websocket.close()
-	elif user == "ws-dev-get":
-		while True: 
-			await websocket.send("INPUT FILE PATH")
-			fp = await websocket.recv()
-			if fp == "-LOGOUT":
-				await websocket.send("Logging out...")
-				await asyncio.sleep(1)
-				await websocket.close()
-				break
-			elif ".." in fp:
-				await websocket.send("Access Denied.")
-			else:
-				try:
-					file = open(fileDir+fp)
-					await websocket.send(file.read())
-					file.close()
-				except:
-					await websocket.send("File not Found")
+	if user == "-UPDATE":
+		await asyncio.sleep(1)
+		try:
+			file = open(luaFilePath)
+			await websocket.send(file.read())
+			file.close()
+		except:
+			await websocket.send("ERROR: EXCEPTION OCCURRED")
+		await asyncio.sleep(1)
+		await websocket.close()
 	elif user.startswith("{") and user.endswith("}"):
 		try:
 			x = json.loads(user)
@@ -306,9 +186,9 @@ async def handler(websocket):
 				connnectedSlots.append(item)
 				identity = {"handle":websocket,"key":"internal-stargate-identity","slot":item}
 				connected.append(identity)
-				print("Stargate Authentication Completed")
-				print("Key: "+x["ws-key"])
-				print("Slot: "+str(item))
+				# print("Stargate Authentication Completed")
+				# print("Key: "+x["ws-key"])
+				# print("Slot: "+str(item))
 				keyTable[str(item)] = x["ws-key"]
 				del x["ws-key"]
 				x["slot"] = item
@@ -371,13 +251,102 @@ async def handler(websocket):
 			print(ex)
 			# await transmit(json.dumps({"lua":"print(\"exception\")"}))
 			await websocket.close()
-	else: #if the supplied user was invalid, close the connection
-		await websocket.close()
+	else:
+		key = user
+		print("Authenticating user: "+key)
+		auth = defaultconfig
+		for item in clientConfig:
+			if item["key"] == key:
+				auth = item
+		if auth["keyEnabled"]==True:
+			identity = {
+				"handle":websocket,
+				"key":key,
+				"slot":-1
+			}
+			print("Auth competed! User: "+key)
+			connected.append(identity) #add the client to the list
+			await broadcastPerms()
+			await transmit("-QUERY") #this tells the headless instances to report all stargate data
+			while True:
+				try:
+					try:
+						async with asyncio.timeout(30):
+							msg = await websocket.recv()
+						await websocket.send('{"type":"keepalive"}')
+						if msg.startswith("{") and msg.endswith("}") and auth["allowJSON"] == False:
+							print("JSON Perms Denied: "+key)
+						elif msg.startswith("{") and msg.endswith("}"):
+							await transmit(msg)
+						# elif msg == "-API":
+						# 	global apiRequested
+						# 	apiRequested = True
+						elif msg == "-SLOTS":
+							await broadcastPerms()
+						elif msg == "-QUERY":
+							await transmit("-QUERY")
+						else:
+							try:
+								slotNo = int(msg[0:2])
+								allowedSlots = []
+								if auth["slotListType"] == "blacklist":
+									for s in requiredSlots:
+										if not s in auth["slotList"]:
+											allowedSlots.append(s)
+								else:
+									for s in auth["slotList"]:
+										allowedSlots.append(s)
+								if auth["canControlExtras"]:
+									for s in connnectedSlots:
+										allow = False
+										if not s in requiredSlots:
+											allow = True
+										if allow:
+											allowedSlots.append(s)
+								else:
+									for s in connnectedSlots:
+										allow = False
+										if not s in requiredSlots:
+											if str(s) in addressTable:
+												for addr in auth["allowAddresses"]:
+													if addr == addressTable[str(s)]:
+														allow = True
+										if allow:
+											allowedSlots.append(s)
+								for s in connnectedSlots:
+									allow = False
+									if not s in requiredSlots:
+										if not s in allowedSlots:
+											if str(s) in keyTable:
+												if keyTable[str(s)] == key or keyTable[str(s)]=="ws-dev-public":
+													allow = True
+									if allow:
+										allowedSlots.append(s)
+								if slotNo in allowedSlots:
+									for item in connected:
+										if item["slot"] != -1:
+											if item["slot"] == slotNo:
+												msg = msg[2:]
+												await item["handle"].send(msg)
+							except Exception as ex:
+								print("Exception in command send function!")
+								print(type[ex])
+								print(ex.args)
+								print(ex)
+					except TimeoutError:
+						await websocket.send('{"type":"keepalive"}')
+				except:
+					try:
+						connected.remove(identity)
+					except:
+						pass
+					break
+		else: #if the access key was presend but disabled, close the connection
+			await websocket.close() #This blocks use of the internal stargate identity
 
 
 async def main():
-	apiTask = asyncio.create_task(apiFunc())
-	# pingTask = asyncio.create_task(pingPong())
+	# apiTask = asyncio.create_task(apiFunc())
 	loop = asyncio.get_running_loop()
 	stop = loop.create_future()
 	# loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
