@@ -9,30 +9,12 @@ from websockets.server import serve
 global apiRequested
 apiRequested = False
 connected = []
-#The path below is where the lua files this thing serves go
+
 fileDir = "./files/"
 luaFileDirectory = "./files/lua/"
-#files are grabbed as needed, meaning that updates to resoniteLink are as simple as editing the lua file.
-#it's possible to terminate a resoniteLink instance with a short websocket message, but this funciton should ONLY be used for emergency updates.
-#This is possible thanks to the ECHO function on the bridge.
-headlessConfig = [
-	{
-		"slot": 0,
-		"key": "U-1TtwBoLpFMu/catiotocat",
-	},
-	{
-		"slot": 2,
-		"key": "catio headless world: something"
-	},
-	{
-		"slot": 3,
-		"key": "catio headless world: another"
-	},
-	{
-		"slot": 1,
-		"key": "catio headless world: catio home",
-	}
-]
+
+
+headlessConfig = []
 defaultconfig = {
 		"key":"ws-dev-public",
 		"slotListType":"whitelist",
@@ -61,54 +43,9 @@ clientConfig = [
 		"allowAddresses":[],
 		"keyEnabled":True,
 	},
-	{
-		"key":"catio-headless-ws-dev-CLIENT-1234",
-		"slotListType":"blacklist",
-		"slotList":[],
-		"allowJSON":False,
-		"canControlExtras":True,
-		"allowAddresses":[],
-		"keyEnabled":True,
-	},
-	{
-		"key":"U-1TtwBoLpFMu/catiotocat/public",
-		"slotListType":"whitelist",
-		"slotList":[],
-		"allowJSON":False,
-		"canControlExtras":False,
-		"allowAddresses":[],
-		"keyEnabled":True,
-	},
-	{
-		"key":"U-1TtwBoLpFMu/catiotocat/access",
-		"slotListType":"blacklist",
-		"slotList":[0],
-		"allowJSON":False,
-		"canControlExtras":True,
-		"allowAddresses":[],
-		"keyEnabled":True,
-	},
-	{
-		"key":"U-MerithTK/Merith.TK/access",
-		"slotListType":"blacklist",
-		"slotList":[0],
-		"allowJSON":False,
-		"canControlExtras":True,
-		"allowAddresses":[],
-		"keyEnabled":True,
-	},
-	{
-		"key":"U-1YD0YYGPwJ6/DimaDoesStuff/access",
-		"slotListType":"whitelist",
-		"slotList":[],
-		"allowJSON":False,
-		"canControlExtras":False,
-		"allowAddresses":["HANG0T"],
-		"keyEnabled":True
-	}
 ]
 
-requiredSlots = [0,1,2,3]
+requiredSlots = []
 # requiredSlots = [0]
 maxSlotCount = 100
 connnectedSlots = []
@@ -163,28 +100,7 @@ async def actuallyTransmit(message):
 		except:
 			slot = None
 	for connection in connected:
-		# conf = None
-		# for key in clientConfig:
-		# 	if key["key"] == connection["key"]:
-		# 		conf = key
-		# deniedSlots = []
-		# if conf["slotListType"] == "blacklist":
-		# 	for s in conf["slotList"]:
-		# 		deniedSlots.append(s)
-		# else:
-		# 	for s in requiredSlots:
-		# 		if not s in conf["slotList"]:
-		# 			deniedSlots.append(s)
 		msg = message
-		# if slot != None:
-			# print("checking if slot is allowed for "+connection["key"])
-			# if slot in deniedSlots:
-			# 	raw = {
-			# 		"slot":slot,
-			# 		"user":"websocket",
-			# 		"gateStatus":-2,
-			# 	}
-			# 	msg = json.dumps(raw)
 		try:
 			if connection["key"] != "internal-stargate-identity" or msg == "-QUERY":
 				await connection["handle"].send(msg)
@@ -345,16 +261,6 @@ async def handler(websocket):
 					break
 		else: #if the access key was wrong, close the connection
 			await websocket.close()
-	elif user == "bootloader.lua":
-		luaFile = open(luaFileDirectory+"bootloader.lua","r")
-		bootloader = luaFile.read()
-		luaFile.close()
-		luaFile = open(luaFileDirectory+"resoniteLink.lua","r")
-		resoniteLink = luaFile.read()
-		luaFile.close()
-		await websocket.send(json.dumps({"bootloader":bootloader,"resoniteLink":resoniteLink}))
-		await asyncio.sleep(2) #wait a few seconds before closing the connection.
-		await websocket.close()
 	elif user == "ws-dev-get":
 		while True: 
 			await websocket.send("INPUT FILE PATH")
