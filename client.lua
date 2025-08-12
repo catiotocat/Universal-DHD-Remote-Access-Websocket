@@ -1505,13 +1505,3 @@ if not success then
         print("Please DM the error message printed above to catiotocat on Discord")
     end
 end
-
---[[
-Command Info
-Format: XXYZ
-XX = Slot Number
-Y = Command ID
-Z = Parameter (Varied Length)
-Command List:
-
-]]
