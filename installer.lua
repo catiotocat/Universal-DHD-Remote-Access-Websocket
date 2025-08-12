@@ -31,7 +31,9 @@ term.setCursorPos(1,1)
 
 local wsURL
 local valid = true
+local reset = false
 repeat
+    reset = false
     term.setTextColor(colorHeader)
     print("Universal DHD Remote Access Client Installer")
     term.setTextColor(colorText)
@@ -39,10 +41,12 @@ repeat
     term.setTextColor(colorText)
     print("0: wss://catio.merith.xyz/ws/ (Default)")
     print("1: ws://localhost:8059/")
-    print("2: Custom URL")
-    print("3: Do Not Change")
+    print("C: Custom URL")
+    print("L: Do Not Change")
+    print("X: Cancel Installation")
     term.setTextColor(colorPrompt)
-    print("Enter the number of your selection and press enter.")
+    print("Enter the letter/number of your selection and press enter.")
+    print("Leave blank to use the default setting.")
     term.setTextColor(colorHeader)
     term.write("> ")
     if not valid then
@@ -56,25 +60,51 @@ repeat
     end
     valid = true
     term.setTextColor(colorText)
-    local response = read()
-    if response == "0" then
+    local response = string.upper(read())
+    if response == "0" or response == "" then
         wsURL = "wss://catio.merith.xyz/ws/"
     elseif response == "1" then
         wsURL = "ws://localhost:8059/"
-    elseif response == "2" then
+    elseif response == "C" then
         term.setTextColor(colorPrompt)
+        term.clearLine()
         print("Please enter the websocket URL.")
         term.setTextColor(colorHeader)
+        term.clearLine()
         term.write("> ")
         term.setTextColor(colorText)
         wsURL = read()
-    elseif response == "3" then
+    elseif response == "L" then
+    elseif response == "X" then
+        reset = true
+        term.clear()
+        term.setCursorPos(1,1)
+        term.setTextColor(colorHeader)
+        print("Universal DHD Remote Access Client Installer")
+        term.setTextColor(colorText)
+        print("Would you like to cancel the installation?")
+        term.setTextColor(colorHeader)
+        term.write("y/n> ")
+        term.setTextColor(colorText)
+        response = read()
+        if string.lower(response) == "y" then
+            break
+        else
+            term.clear()
+            term.setCursorPos(1,1)
+        end
     else
         term.clear()
         term.setCursorPos(1,1)
         valid = false
     end
-until valid
+until valid and not reset
+if reset then 
+    term.setTextColor(colorError)
+    print("Exiting...")
+    return
+end
+
 if wsURL then
     settings.set("resoniteLink.websocketUrl",wsURL)
     settings.save()
@@ -84,18 +114,21 @@ term.clear()
 term.setCursorPos(1,1)
 
 local wsKey
-local valid = true
+valid = true
 repeat
+    reset = false
     term.setTextColor(colorHeader)
     print("Universal DHD Remote Access Client Installer")
     term.setTextColor(colorText)
     print("Please select an access key to use.")
     term.setTextColor(colorText)
     print("0: public (Default)")
-    print("1: Custom Access Key")
-    print("2: Do Not Change")
+    print("C: Custom Access Key")
+    print("L: Do Not Change")
+    print("X: Cancel Installation")
     term.setTextColor(colorPrompt)
-    print("Enter the number of your selection and press enter.")
+    print("Enter the letter/number of your selection and press enter.")
+    print("Leave blank to use the default setting.")
     term.setTextColor(colorHeader)
     term.write("> ")
     if not valid then
@@ -109,23 +142,49 @@ repeat
     end
     valid = true
     term.setTextColor(colorText)
-    local response = read()
-    if response == "0" then
+    local response = string.upper(read())
+    if response == "0" or response == "" then
         wsKey = "public"
-    elseif response == "1" then
+    elseif response == "C" then
         term.setTextColor(colorPrompt)
+        term.clearLine()
         print("Please enter the access key.")
         term.setTextColor(colorHeader)
+        term.clearLine()
         term.write("> ")
         term.setTextColor(colorText)
         wsKey = read()
-    elseif response == "2" then
+    elseif response == "L" then
+    elseif response == "X" then
+        reset = true
+        term.clear()
+        term.setCursorPos(1,1)
+        term.setTextColor(colorHeader)
+        print("Universal DHD Remote Access Client Installer")
+        term.setTextColor(colorText)
+        print("Would you like to cancel the installation?")
+        term.setTextColor(colorHeader)
+        term.write("y/n> ")
+        term.setTextColor(colorText)
+        response = read()
+        if string.lower(response) == "y" then
+            break
+        else
+            term.clear()
+            term.setCursorPos(1,1)
+        end
     else
         term.clear()
         term.setCursorPos(1,1)
         valid = false
     end
-until valid
+until valid and not reset
+if reset then 
+    term.setTextColor(colorError)
+    print("Exiting...")
+    return
+end
+
 if wsKey then
     settings.set("resoniteLink.accessKey",wsKey)
     settings.save()
@@ -140,7 +199,7 @@ term.setTextColor(colorText)
 print("Settings have been saved.")
 
 print("Downloading client.lua")
-local ws,err = http.websocket(wsURL)
+local ws,err = http.websocket(settings.get("resoniteLink.websocketUrl"))
 if not ws then 
     printError("Download Failed")
     printError(err)
