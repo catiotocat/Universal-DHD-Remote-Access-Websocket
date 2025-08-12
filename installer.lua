@@ -1,17 +1,17 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
-settings.define("resoniteLink.accessKey",{
+settings.define("udhdRemoteAccess.accessKey",{
     description="Access Key for the webocket server", 
     default = "public", 
     type="string"
 })
-settings.define("resoniteLink.websocketUrl",{
+settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
 	default="wss://catio.merith.xyz/ws/",
 	type="string"
 })
-settings.define("resoniteLink.allowUpdates",{
+settings.define("udhdRemoteAccess.allowUpdates",{
     description="Set to false to disable automatic updates", 
     default = true, 
     type="boolean"
@@ -106,7 +106,7 @@ if reset then
 end
 
 if wsURL then
-    settings.set("resoniteLink.websocketUrl",wsURL)
+    settings.set("udhdRemoteAccess.websocketUrl",wsURL)
     settings.save()
 end
 
@@ -186,7 +186,7 @@ if reset then
 end
 
 if wsKey then
-    settings.set("resoniteLink.accessKey",wsKey)
+    settings.set("udhdRemoteAccess.accessKey",wsKey)
     settings.save()
 end
 
@@ -199,7 +199,7 @@ term.setTextColor(colorText)
 print("Settings have been saved.")
 
 print("Downloading client.lua")
-local ws,err = http.websocket(settings.get("resoniteLink.websocketUrl"))
+local ws,err = http.websocket(settings.get("udhdRemoteAccess.websocketUrl"))
 if not ws then 
     printError("Download Failed")
     printError(err)

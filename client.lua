@@ -1,22 +1,33 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
-settings.define("resoniteLink.accessKey",{
+--The following few lines of code transfer the config to the new setting variables
+local configStrings = {"accessKey","websocketUrl","allowUpdates"}
+for i=1,#configStrings do
+	item = configStrings[i]
+	settings.undefine("resoniteLink."..item)
+	local value = settings.get("resoniteLink."..item)
+	if value then
+		settings.set("udhdRemoteAccess."..item,value)
+		settings.unset("resoniteLink."..item)
+	end
+end
+settings.define("udhdRemoteAccess.accessKey",{
     description="Access Key for the webocket server", 
     default = "public", 
     type="string"
 })
-settings.define("resoniteLink.websocketUrl",{
+settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
-	default="ws://localhost:8059/",
+	default="wss://catio.merith.xyz/ws/",
 	type="string"
 })
-settings.define("resoniteLink.allowUpdates",{
+settings.define("udhdRemoteAccess.allowUpdates",{
     description="Set to false to disable automatic updates", 
     default = true, 
     type="boolean"
 })
-settings.save()
+settings.save() --save all changes to the computer settings
 
 local args = {...}
 local parsed = {}
@@ -33,7 +44,7 @@ local wasKeyword = nil
 
 local sgURL = "https://api.rxserver.net/stargates/"
 
-if not settings.get("resoniteLink.allowUpdates") then
+if not settings.get("udhdRemoteAccess.allowUpdates") then
     argNoUpdate = true
 end
 
@@ -74,7 +85,7 @@ if argHelp then
     return
 end
 
-local wsURL = argUrl or settings.get("resoniteLink.websocketUrl")
+local wsURL = argUrl or settings.get("udhdRemoteAccess.websocketUrl")
 
 function update()
     print("Checking for Updates...")
@@ -166,7 +177,7 @@ if not argNoUpdate then
 end
 
 activeSlot = 0
-local accessKey = argKey or settings.get("resoniteLink.accessKey")
+local accessKey = argKey or settings.get("udhdRemoteAccess.accessKey")
 
 isRunning = true
 xsize,ysize = term.getSize()
