@@ -15,6 +15,6 @@ To change settings later on you can either use the built-in `set` command or re-
 
 The server program was designed to run in Python 3.13 and relies on the `websockets` library.  
 The server will default to running at the following url: `ws://localhost:8059/`  
-The client program provided in this repo is configured to use this url by default as well.
+The installer has this url available as a preset.
 
 More documentation will be written in the future.
