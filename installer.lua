@@ -1,6 +1,17 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
+--The following few lines of code transfer the config to the new setting variables
+local configStrings = {"accessKey","websocketUrl","allowUpdates"}
+for i=1,#configStrings do
+	item = configStrings[i]
+	settings.undefine("resoniteLink."..item)
+	local value = settings.get("resoniteLink."..item)
+	if value then
+		settings.set("udhdRemoteAccess."..item,value)
+		settings.unset("resoniteLink."..item)
+	end
+end
 settings.define("udhdRemoteAccess.accessKey",{
     description="Access Key for the webocket server", 
     default = "public", 
@@ -16,7 +27,7 @@ settings.define("udhdRemoteAccess.allowUpdates",{
     default = true, 
     type="boolean"
 })
-settings.save()
+settings.save() --save all changes to the computer settings
 
 local colorBG = colors.black
 local colorText = colors.white
