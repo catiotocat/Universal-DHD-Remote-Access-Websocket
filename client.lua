@@ -2,7 +2,7 @@
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
 --The following few lines of code transfer the config to the new setting variables
-local programVersion = "1.0.0"
+local programVersion = "1.0.2"
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
 	item = configStrings[i]
@@ -213,13 +213,13 @@ local permsObtained = false
 local apiPage = {}
 local wsPage = {}
 targetAddress = ""
-term.setPaletteColor(colors.lime,0x00FF00)
-term.setPaletteColor(colors.red,0xFF0000)
-term.setPaletteColor(colors.yellow,0xFFFF00)
-term.setPaletteColor(colors.black,0x000000)
-term.setPaletteColor(colors.blue,0x00A0FF)
-term.setPaletteColor(colors.white,0xe5e5e5)
-term.setPaletteColor(colors.lightBlue,0x00ffff)
+local colorPalette = {
+	colors={colors.lime,colors.red,colors.yellow,colors.black,colors.blue,colors.white,colors.lightBlue},
+	codes={0x00FF00,0xFF0000,0xFFFF00,0x000000,0x00A0FF,0xe5e5e5,0x00ffff}
+}
+for i=1,#colorPalette.colors do
+	term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
+end
 local timeoutTimer = os.startTimer(40)
 local callChain = {{"init"}}
 debugDialogState = {visible = false,timerid = 0, text = "missingno"}
@@ -907,7 +907,7 @@ local function drawHeader(printSlot,gateData)
 		term.write("STARGATE SLOT "..printSlot)
 	end
 	if argDebug then
-		term.write(" v"..programVersion)
+		-- term.write(" v"..programVersion)
 	end
 	local cursorx,cursory = term.getCursorPos()
 	local xsize,ysize = term.getSize()
@@ -924,6 +924,11 @@ local function drawHeader(printSlot,gateData)
 	term.write(" X ")
 	term.setBackgroundColor(gateColor)
 	term.write(" ")
+	if argDebug then
+		term.setTextColor(colors.black)
+		term.setCursorPos(xsize-(7+#programVersion),1)
+		term.write("v"..programVersion)
+	end
     table.remove(callChain,#callChain)
 end
 
@@ -1427,13 +1432,9 @@ local function main()
     	elseif event[1] == "term_resize" then
     		xsize,ysize = term.getSize()
     		dialogState.active = false
-    		term.setPaletteColor(colors.lime,0x00FF00)
-    		term.setPaletteColor(colors.red,0xFF0000)
-    		term.setPaletteColor(colors.yellow,0xFFFF00)
-    		term.setPaletteColor(colors.black,0x000000)
-    		term.setPaletteColor(colors.blue,0x00A0ff)
-    		term.setPaletteColor(colors.white,0xe5e5e5)
-    		term.setPaletteColor(colors.lightBlue,0x00ffff)
+			for i=1,#colorPalette.colors do
+				term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
+			end
     		writeDebugDialog("term resize detected")
     		drawMain()
     	elseif event[1] == "http_success" and event[2] == sgURL then
@@ -1457,13 +1458,10 @@ end
 
 local success,msg = pcall(main)
 pcall(ws.close)
-term.setPaletteColor(colors.lime,term.nativePaletteColor(colors.lime))
-term.setPaletteColor(colors.red,term.nativePaletteColor(colors.red))
-term.setPaletteColor(colors.yellow,term.nativePaletteColor(colors.yellow))
-term.setPaletteColor(colors.black,term.nativePaletteColor(colors.black))
-term.setPaletteColor(colors.white,term.nativePaletteColor(colors.white))
-term.setPaletteColor(colors.lightBlue,term.nativePaletteColor(colors.lightBlue))
-term.setPaletteColor(colors.blue,term.nativePaletteColor(colors.blue))
+
+for i=1,#colorPalette.colors do
+	term.setPaletteColor(colorPalette.colors[i],term.nativePaletteColor(colorPalette.colors[i]))
+end
 term.setBackgroundColor(colors.black)
 term.setTextColor(colors.white)
 term.clear()
