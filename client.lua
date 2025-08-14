@@ -2,6 +2,7 @@
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
 --The following few lines of code transfer the config to the new setting variables
+local programVersion = "1.0.0"
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
 	item = configStrings[i]
@@ -39,6 +40,7 @@ local argKey = nil
 local argUrl = nil
 local argHelp = false
 local argDebug = false
+local argVersion = false
 
 local wasKeyword = nil
 
@@ -62,6 +64,8 @@ for _, arg in pairs(args) do
 		wasKeyword = "W"
     elseif arg == "-U" then
         argUpdate = true
+	elseif arg == "-V" then
+		argVersion = true
     elseif arg == "-N" then
         argNoUpdate = true
     elseif arg == "-L" then
@@ -82,6 +86,7 @@ if argHelp then
     print("-L - runs the program in a loop.")
     print("-D - enable debugging messages")
     print("-H - show this information")
+	print("-V - print the program version and exit.")
     return
 end
 
@@ -125,6 +130,11 @@ if argUpdate then
     argLoop = false
     update()
     return
+end
+
+if argVersion then
+	print("client.lua v"..programVersion)
+	return
 end
 
 if argKey then
@@ -243,7 +253,8 @@ local function dumpState()
         args=args,
         exitMsg=exitMessage,
         accessKey=accessKey,
-        callChain=callChain
+        callChain=callChain,
+		version=programVersion
     }
     return dumpTbl,dataTbl
 end
@@ -341,21 +352,21 @@ local function drawDialog() --Handles Dialog Box Display
 	elseif dialogState.type == "sg" then
         local dataSet = apiTbl[tostring(dialogState.id)]
         term.setCursorPos(1,2)
-		local str0 = "ADDR: "..dialogState.id
-		local str1 = "NAME: Gate Offline"
-		local str2 = "HOST: nil"
-		local str3 = "USERS: -/-"
+		local strings = {}
+		strings.str0 = "ADDR: "..dialogState.id
+		strings.str1 = "NAME: Gate Offline"
+		strings.str2 = "HOST: nil"
+		strings.str3 = "USERS: -/-"
         if dataSet then
-            str1 = "NAME: "..dataSet.session_name
-			str2 = "HOST: "..dataSet.owner_name
-			str3 = "USERS: "..tostring(dataSet.active_users).."/"..tostring(dataSet.max_users)
+            strings.str1 = "NAME: "..dataSet.session_name
+			strings.str2 = "HOST: "..dataSet.owner_name
+			strings.str3 = "USERS: "..tostring(dataSet.active_users).."/"..tostring(dataSet.max_users)
         end
 		local windSize = 18
-		if #str1 > windSize then
-			windSize = #str1
-		end
-		if #str2 > windSize then
-			windSize = #str2
+		for i=0,3 do
+			if #strings["str"..i] > windSize then
+				windSize = #strings["str"..i]
+			end
 		end
 		if windSize > xsize - 11 then windSize = xsize - 11 end
 		local wind = window.create(term.current(),1,2,windSize,5)
@@ -367,7 +378,7 @@ local function drawDialog() --Handles Dialog Box Display
 		wind.setCursorPos(1,1)
 		wind.write("API GATE INFO")
 		wind.setCursorPos(1,2)
-		wind.write(str0)
+		wind.write(strings.str0)
 		wind.setTextColor(colors.red)
 		if dataSet then
 			if dataSet.is_headless then
@@ -379,12 +390,10 @@ local function drawDialog() --Handles Dialog Box Display
 			wind.write("--")
 		end
 		wind.setTextColor(colors.white)
-		wind.setCursorPos(1,3)
-		wind.write(str1)
-		wind.setCursorPos(1,4)
-		wind.write(str2)
-		wind.setCursorPos(1,5)
-		wind.write(str3)
+		for i=1,3 do
+			wind.setCursorPos(1,2+i)
+			wind.write(strings["str"..i])
+		end
 		wind.setBackgroundColor(colors.red)
 		wind.setCursorPos(windSize-2,1)
 		wind.write(" X ")
@@ -431,53 +440,34 @@ local function drawDialog() --Handles Dialog Box Display
         term.setCursorPos(1,2)
 		if dataSet.addr == "" then dataSet.addr = "------" end
 		if dataSet.group == "" then dataSet.group = "--" end
-		local str0 = "ADDR: "..dataSet.addr
-        local str1 = "NAME: "..dataSet.gateInfo.session_name
-		local str2 = "HOST: "..dataSet.gateInfo.host_name
-		local str3 = "USERS: "..tostring(dataSet.playerCount).."/"..tostring(dataSet.playerMax)
-		local str4 = "CS ENABLE: "..tostring(dataSet.gateInfo.gate_cs_en)
-		local str5 = "CS NAME: nil"
-		local str6 = "CS VISIBLE: "..tostring(dataSet.gateInfo.gate_cs_vis)
-		local str7 = "ACCESS LVL: "..dataSet.gateInfo.access_level
+		local strings = {}
+		strings.str0 = "ADDR: "..dataSet.addr
+        strings.str1 = "NAME: "..dataSet.gateInfo.session_name
+		strings.str2 = "HOST: "..dataSet.gateInfo.host_name
+		strings.str3 = "USERS: "..tostring(dataSet.playerCount).."/"..tostring(dataSet.playerMax)
+		strings.str4 = "CS ENABLE: "..tostring(dataSet.gateInfo.gate_cs_en)
+		strings.str5 = "CS NAME: nil"
+		strings.str6 = "CS VISIBLE: "..tostring(dataSet.gateInfo.gate_cs_vis)
+		strings.str7 = "ACCESS LVL: "..dataSet.gateInfo.access_level
 		if dataSet.gateInfo.gate_name then
-			str5 = "CS NAME: "..dataSet.gateInfo.gate_name
+			strings.str5 = "CS NAME: "..dataSet.gateInfo.gate_name
 		end
 		local windSize = 21
-		local windYSize, str8,str9,str10
-		if #str1 > windSize then
-			windSize = #str1
-		end
-		if #str2 > windSize then
-			windSize = #str2
-		end
-		if #str3 > windSize then
-			windSize = #str3
-		end
-		if #str4 > windSize then
-			windSize = #str4
-		end
-		if #str5 > windSize then
-			windSize = #str5
-		end
-		if #str6 > windSize then
-			windSize = #str6
-		end
-		if #str7 > windSize then
-			windSize = #str7
+		local windYSize
+		for i=0,7 do
+			if #strings["str"..i] > windSize then
+				windSize = #strings["str"..i]
+			end
 		end
 		if dataSet.gateInfo.dhd_version then
 			windYSize = 12
-			str8 = "WS USER: "..dataSet.gateInfo.user_name
-			str9 = "GATE VER: "..dataSet.gateInfo.gate_version
-			str10 = "UDHD VER: "..dataSet.gateInfo.dhd_version
-			if #str8 > windSize then
-				windSize = #str8
-			end
-			if #str9 > windSize then
-				windSize = #str9
-			end
-			if #str10 > windSize then
-				windSize = #str10
+			strings.str8 = "WS USER: "..dataSet.gateInfo.user_name
+			strings.str9 = "GATE VER: "..dataSet.gateInfo.gate_version
+			strings.str10 = "UDHD VER: "..dataSet.gateInfo.dhd_version
+			for i=8,10 do
+				if #strings["str"..i] > windSize then
+					windSize = #strings["str"..i]
+				end
 			end
 		else
 			windYSize = 9
@@ -494,7 +484,7 @@ local function drawDialog() --Handles Dialog Box Display
 		if #slotString == 1 then slotString = "0"..slotString end
 		wind.write("STARGATE SLOT "..slotString)
 		wind.setCursorPos(1,2)
-		wind.write(str0)
+		wind.write(strings.str0)
 		wind.setTextColor(colors.red)
 		local allowed = false
 		for i=1,#wsRemap do
@@ -507,27 +497,15 @@ local function drawDialog() --Handles Dialog Box Display
 		end
 		wind.write(dataSet.group)
 		wind.setTextColor(colors.white)
-		wind.setCursorPos(1,3)
-		wind.write(str1)
-		wind.setCursorPos(1,4)
-		wind.write(str2)
-		wind.setCursorPos(1,5)
-		wind.write(str3)
-		wind.setCursorPos(1,6)
-		wind.write(str4)
-		wind.setCursorPos(1,7)
-		wind.write(str5)
-		wind.setCursorPos(1,8)
-		wind.write(str6)
-		wind.setCursorPos(1,9)
-		wind.write(str7)
+		for i=1,7 do
+			wind.setCursorPos(1,2+i)
+			wind.write(strings["str"..i])
+		end
 		if dataSet.gateInfo.dhd_version then
-			wind.setCursorPos(1,10)
-			wind.write(str8)
-			wind.setCursorPos(1,11)
-			wind.write(str9)
-			wind.setCursorPos(1,12)
-			wind.write(str10)
+			for i=8,10 do
+				wind.setCursorPos(1,2+i)
+				wind.write(strings["str"..i])
+			end
 		end
 		wind.setBackgroundColor(colors.red)
 		wind.setCursorPos(windSize-2,1)
@@ -927,6 +905,9 @@ local function drawHeader(printSlot,gateData)
 		end
 	else
 		term.write("STARGATE SLOT "..printSlot)
+	end
+	if argDebug then
+		term.write(" v"..programVersion)
 	end
 	local cursorx,cursory = term.getCursorPos()
 	local xsize,ysize = term.getSize()
