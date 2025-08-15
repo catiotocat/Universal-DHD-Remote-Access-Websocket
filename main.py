@@ -15,7 +15,7 @@ adminAccessKey = "admin"
 
 mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
-luaFilePath = mypath+"/client.lua"
+luaFilePath = mypath+"/lua/client.lua"
 
 headlessConfig = []
 defaultconfig = {
@@ -24,6 +24,7 @@ defaultconfig = {
 		"slotList":[],
 		"canControlExtras":False,
 		"allowAddresses":[],
+		"allowKeys":[],
 		"keyEnabled":True,
 	}
 clientConfig = [
@@ -33,6 +34,7 @@ clientConfig = [
 		"slotList":[],
 		"canControlExtras":False,
 		"allowAddresses":[],
+		"allowKeys":[],
 		"keyEnabled":False,
 	},
 	defaultconfig,
@@ -45,12 +47,21 @@ try:
 	config = json.loads(configFile.read())
 	configFile.close()
 	for gate in config["gates"]:
-		if gate["slot"] in requiredSlots:
-			print("\033[33mDuplicate Gate Entry Detected: Slot"+str(gate["slot"])+" is defined multiple times!\033[0m")
+		if gate["enabled"] == False:
+			print("Skipped loading entry for slot "+str(gate["slot"])+" because entry is disabled")
+		elif gate["slot"] in requiredSlots:
+			print("\033[33mDuplicate Gate Entry Detected: Slot "+str(gate["slot"])+" is defined multiple times!\033[0m")
 		else:
-			print("Loaded gate entry for slot "+str(gate["slot"]))
-			headlessConfig.append(gate)
-			requiredSlots.append(gate["slot"])
+			duplicate = False
+			for entry in headlessConfig:
+				if entry["key"] == gate["key"]:
+					duplicate = True
+			if duplicate:
+				print("\033[33mDuplicate Gate Entry Detected: Slot "+str(gate["slot"])+" uses duplicate access key!\033[0m")
+			else:
+				print("Loaded gate entry for slot "+str(gate["slot"]))
+				headlessConfig.append(gate)
+				requiredSlots.append(gate["slot"])
 	for key in config["keys"]:
 		if key["keyEnabled"] == False:
 			print("Skipped loading key \""+key["key"]+"\" because entry is disabled.")
@@ -75,12 +86,21 @@ except Exception as ex:
 		config = json.loads(configFile.read())
 		configFile.close()
 		for gate in config["gates"]:
-			if gate["slot"] in requiredSlots:
-				print("\033[33mDuplicate Gate Entry Detected: Slot"+str(gate["slot"])+" is defined multiple times!\033[0m")
+			if gate["enabled"] == False:
+				print("Skipped loading entry for slot "+str(gate["slot"])+" because entry is disabled")
+			elif gate["slot"] in requiredSlots:
+				print("\033[33mDuplicate Gate Entry Detected: Slot "+str(gate["slot"])+" is defined multiple times!\033[0m")
 			else:
-				print("Loaded gate entry for slot "+str(gate["slot"]))
-				headlessConfig.append(gate)
-				requiredSlots.append(gate["slot"])
+				duplicate = False
+				for entry in headlessConfig:
+					if entry["key"] == gate["key"]:
+						duplicate = True
+				if duplicate:
+					print("\033[33mDuplicate Gate Entry Detected: Slot "+str(gate["slot"])+" uses duplicate access key!\033[0m")
+				else:
+					print("Loaded gate entry for slot "+str(gate["slot"]))
+					headlessConfig.append(gate)
+					requiredSlots.append(gate["slot"])
 		for key in config["keys"]:
 			if key["keyEnabled"] == False:
 				print("Skipped loading key \""+key["key"]+"\" because entry is disabled.")
@@ -135,7 +155,8 @@ async def actuallyTransmit(message):
 		msg = message
 		try:
 			if connection["key"] != "internal-stargate-identity" or msg == "-QUERY":
-				await connection["handle"].send(msg)
+				if connection["key"] == "internal-stargate-identity" or msg != "-QUERY":
+					await connection["handle"].send(msg)
 		except:
 			connected.remove(connection)
 
@@ -219,26 +240,6 @@ async def handler(websocket):
 			await websocket.send("ERROR: EXCEPTION OCCURRED")
 		await asyncio.sleep(1)
 		await websocket.close()
-	elif user == "ws-dev-get":
-		while True: 
-			await websocket.send("INPUT FILE PATH")
-			fp = await websocket.recv()
-			if fp == "-LOGOUT":
-				await websocket.send("Logging out...")
-				await asyncio.sleep(1)
-				await websocket.close()
-				break
-			elif ".." in fp:
-				await websocket.send("Access Denied.")
-			elif fp == "lua/client.lua":
-				try:
-					file = open(luaFilePath)
-					await websocket.send(file.read())
-					file.close()
-				except:
-					await websocket.send("File not Found")
-			else:
-				await websocket.send("File not Found")
 	elif user.startswith("{") and user.endswith("}"):
 		try:
 			x = json.loads(user)
@@ -259,6 +260,8 @@ async def handler(websocket):
 				item = slot
 			else:
 				item = headlessConfig[slot].get("slot")
+				if item in connnectedSlots:
+					item = -1
 			print("Stargate Auth Processing")
 			print("Key: "+x["ws-key"])
 			print("Slot: "+str(item))
