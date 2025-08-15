@@ -1,0 +1,18 @@
+{
+    "gates":[
+        {
+            "slot":0,
+            "key":"public"
+        }
+    ],
+    "keys":[
+        {
+            "key":"admin",
+            "slotListType":"blacklist",
+            "slotList":[],
+            "canControlExtras":true,
+            "allowAddresses":[],
+            "keyEnabled":true
+        }
+    ]
+}

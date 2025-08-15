@@ -36,17 +36,41 @@ clientConfig = [
 		"keyEnabled":False,
 	},
 	defaultconfig,
-	{
-		"key":adminAccessKey,
-		"slotListType":"blacklist",
-		"slotList":[],
-		"canControlExtras":True,
-		"allowAddresses":[],
-		"keyEnabled":True,
-	}
 ]
 
 requiredSlots = []
+# load config file
+try:
+	configFile = open(mypath+"/config.json")
+	config = json.loads(configFile.read())
+	configFile.close()
+	for gate in config["gates"]:
+		if gate["slot"] in requiredSlots:
+			print("\033[33mDuplicate Gate Entry Detected: Slot"+str(gate["slot"])+" is defined multiple times!\033[0m")
+		else:
+			print("Loaded gate entry for slot "+str(gate["slot"]))
+			headlessConfig.append(gate)
+			requiredSlots.append(gate["slot"])
+	for key in config["keys"]:
+		if key["keyEnabled"] == False:
+			print("Skipped loading key \""+key["key"]+"\" because entry is disabled.")
+		else:
+			duplicate = False
+			for entry in clientConfig:
+				if entry["key"] == key["key"]:
+					duplicate = True
+			if duplicate:
+				print("\033[33mDuplicate Client Key Entry Detected: Key \""+key["key"]+"\" is defined multiple times!\033[0m")
+			else:
+				clientConfig.append(key)
+				print("Loaded Client Entry: \""+key["key"]+"\"")
+except Exception as ex:
+	print("\033[91mFailed to read config file!\033[0m")
+	print(type[ex])
+	print(ex.args)
+	print(ex)
+	print("Using default config")
+
 maxSlotCount = 100
 connnectedSlots = []
 pingedSlots = []
@@ -97,47 +121,52 @@ async def transmit(message):
 			msg = json.dumps(raw)
 			await actuallyTransmit(msg)
 
+async def getPerms(accessKey):
+	auth = defaultconfig
+	for item in clientConfig:
+		if item["key"] == accessKey:
+			auth = item
+	allowedSlots = []
+	if auth["slotListType"] == "blacklist":
+		for s in requiredSlots:
+			if not s in auth["slotList"]:
+				allowedSlots.append(s)
+	else:
+		for s in auth["slotList"]:
+			allowedSlots.append(s)
+	if auth["canControlExtras"]:
+		for s in connnectedSlots:
+			allow = False
+			if not s in requiredSlots:
+				allow = True
+			if allow:
+				allowedSlots.append(s)
+	else:
+		for s in connnectedSlots:
+			allow = False
+			if not s in requiredSlots:
+				if str(s) in addressTable:
+					for addr in auth["allowAddresses"]:
+						if addr == addressTable[str(s)]:
+							allow = True
+			if allow:
+				allowedSlots.append(s)
+	for s in connnectedSlots:
+			allow = False
+			if not s in requiredSlots:
+				if not s in allowedSlots:
+					if str(s) in keyTable:
+						if keyTable[str(s)] == accessKey or keyTable[str(s)]==publicAccessKey:
+							allow = True
+			if allow:
+				allowedSlots.append(s)
+	print("\033[96mgetPerms: "+accessKey+" Perms: "+json.dumps(allowedSlots)+"\033[0m")
+	return allowedSlots
+
 async def broadcastPerms():
 	for client in connected:
 		if client["key"] != "internal-stargate-identity":
-			auth = defaultconfig
-			for item in clientConfig:
-				if item["key"] == client["key"]:
-					auth = item
-			allowedSlots = []
-			if auth["slotListType"] == "blacklist":
-				for s in requiredSlots:
-					if not s in auth["slotList"]:
-						allowedSlots.append(s)
-			else:
-				for s in auth["slotList"]:
-					allowedSlots.append(s)
-			if auth["canControlExtras"]:
-				for s in connnectedSlots:
-					allow = False
-					if not s in requiredSlots:
-						allow = True
-					if allow:
-						allowedSlots.append(s)
-			else:
-				for s in connnectedSlots:
-					allow = False
-					if not s in requiredSlots:
-						if str(s) in addressTable:
-							for addr in auth["allowAddresses"]:
-								if addr == addressTable[str(s)]:
-									allow = True
-					if allow:
-						allowedSlots.append(s)
-			for s in connnectedSlots:
-					allow = False
-					if not s in requiredSlots:
-						if not s in allowedSlots:
-							if str(s) in keyTable:
-								if keyTable[str(s)] == client["key"] or keyTable[str(s)]==publicAccessKey:
-									allow = True
-					if allow:
-						allowedSlots.append(s)
+			allowedSlots = getPerms(client["key"])
 			raw = {
 				"defined":requiredSlots,
 				"allowed":allowedSlots,
@@ -160,6 +189,26 @@ async def handler(websocket):
 			await websocket.send("ERROR: EXCEPTION OCCURRED")
 		await asyncio.sleep(1)
 		await websocket.close()
+	elif user == "ws-dev-get":
+		while True: 
+			await websocket.send("INPUT FILE PATH")
+			fp = await websocket.recv()
+			if fp == "-LOGOUT":
+				await websocket.send("Logging out...")
+				await asyncio.sleep(1)
+				await websocket.close()
+				break
+			elif ".." in fp:
+				await websocket.send("Access Denied.")
+			elif fp == "lua/client.lua":
+				try:
+					file = open(luaFilePath)
+					await websocket.send(file.read())
+					file.close()
+				except:
+					await websocket.send("File not Found")
+			else:
+				await websocket.send("File not Found")
 	elif user.startswith("{") and user.endswith("}"):
 		try:
 			x = json.loads(user)
@@ -285,40 +334,7 @@ async def handler(websocket):
 						else:
 							try:
 								slotNo = int(msg[0:2])
-								allowedSlots = []
-								if auth["slotListType"] == "blacklist":
-									for s in requiredSlots:
-										if not s in auth["slotList"]:
-											allowedSlots.append(s)
-								else:
-									for s in auth["slotList"]:
-										allowedSlots.append(s)
-								if auth["canControlExtras"]:
-									for s in connnectedSlots:
-										allow = False
-										if not s in requiredSlots:
-											allow = True
-										if allow:
-											allowedSlots.append(s)
-								else:
-									for s in connnectedSlots:
-										allow = False
-										if not s in requiredSlots:
-											if str(s) in addressTable:
-												for addr in auth["allowAddresses"]:
-													if addr == addressTable[str(s)]:
-														allow = True
-										if allow:
-											allowedSlots.append(s)
-								for s in connnectedSlots:
-									allow = False
-									if not s in requiredSlots:
-										if not s in allowedSlots:
-											if str(s) in keyTable:
-												if keyTable[str(s)] == key or keyTable[str(s)]==publicAccessKey:
-													allow = True
-									if allow:
-										allowedSlots.append(s)
+								allowedSlots = getPerms(key)
 								if slotNo in allowedSlots:
 									for item in connected:
 										if item["slot"] != -1:
@@ -348,6 +364,7 @@ async def main():
 	stop = loop.create_future()
 	# loop.add_signal_handler(signal.SIGTERM, stop.set_result, None)
 	port = int(os.environ.get("PORT","8059"))
+	print("Starting server on port "+str(port))
 	async with serve(handler,"",port):
 		await stop
 
