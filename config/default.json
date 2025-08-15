@@ -17,5 +17,6 @@
 		    "allowKeys":[],
             "keyEnabled":true
         }
-    ]
+    ],
+    "restrictDataAccess":false
 }
