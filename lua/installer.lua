@@ -19,7 +19,7 @@ settings.define("udhdRemoteAccess.accessKey",{
 })
 settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
-	default="wss://catio.merith.xyz/ws/",
+	default="wss://catio-api.merith.xyz/",
 	type="string"
 })
 settings.define("udhdRemoteAccess.allowUpdates",{
@@ -50,7 +50,7 @@ repeat
     term.setTextColor(colorText)
     print("Please select a websocket URL to use.")
     term.setTextColor(colorText)
-    print("0: wss://catio.merith.xyz/ws/ (Default)")
+    print("0: wss://catio-api.merith.xyz/ (Default)")
     print("1: ws://localhost:8059/")
     print("C: Custom URL")
     print("L: Do Not Change")
@@ -73,7 +73,7 @@ repeat
     term.setTextColor(colorText)
     local response = string.upper(read())
     if response == "0" or response == "" then
-        wsURL = "wss://catio.merith.xyz/ws/"
+        wsURL = "wss://catio-api.merith.xyz/"
     elseif response == "1" then
         wsURL = "ws://localhost:8059/"
     elseif response == "C" then
