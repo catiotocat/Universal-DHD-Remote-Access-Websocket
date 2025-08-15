@@ -2,7 +2,7 @@
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
 --The following few lines of code transfer the config to the new setting variables
-local programVersion = "1.0.2"
+local programVersion = "1.0.3"
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
 	item = configStrings[i]
@@ -924,7 +924,7 @@ local function drawHeader(printSlot,gateData)
 	term.write(" X ")
 	term.setBackgroundColor(gateColor)
 	term.write(" ")
-	if argDebug then
+	if argDebug or true then
 		term.setTextColor(colors.black)
 		term.setCursorPos(xsize-(7+#programVersion),1)
 		term.write("v"..programVersion)
