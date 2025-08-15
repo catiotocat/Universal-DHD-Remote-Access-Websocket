@@ -39,9 +39,9 @@ clientConfig = [
 ]
 
 requiredSlots = []
-# load config file
+# load user config file
 try:
-	configFile = open(mypath+"/config.json")
+	configFile = open(mypath+"/config/config.json")
 	config = json.loads(configFile.read())
 	configFile.close()
 	for gate in config["gates"]:
@@ -69,7 +69,37 @@ except Exception as ex:
 	print(type[ex])
 	print(ex.args)
 	print(ex)
-	print("Using default config")
+	print("Using default config file")
+	try:
+		configFile = open(mypath+"/config/default.json")
+		config = json.loads(configFile.read())
+		configFile.close()
+		for gate in config["gates"]:
+			if gate["slot"] in requiredSlots:
+				print("\033[33mDuplicate Gate Entry Detected: Slot"+str(gate["slot"])+" is defined multiple times!\033[0m")
+			else:
+				print("Loaded gate entry for slot "+str(gate["slot"]))
+				headlessConfig.append(gate)
+				requiredSlots.append(gate["slot"])
+		for key in config["keys"]:
+			if key["keyEnabled"] == False:
+				print("Skipped loading key \""+key["key"]+"\" because entry is disabled.")
+			else:
+				duplicate = False
+				for entry in clientConfig:
+					if entry["key"] == key["key"]:
+						duplicate = True
+				if duplicate:
+					print("\033[33mDuplicate Client Key Entry Detected: Key \""+key["key"]+"\" is defined multiple times!\033[0m")
+				else:
+					clientConfig.append(key)
+					print("Loaded Client Entry: \""+key["key"]+"\"")
+	except Exception as ex:
+		print("\033[91mFailed to read default config file!\033[0m")
+		print(type[ex])
+		print(ex.args)
+		print(ex)
+		print("Skipping config file loading.")
 
 maxSlotCount = 100
 connnectedSlots = []
@@ -166,7 +196,7 @@ async def getPerms(accessKey):
 async def broadcastPerms():
 	for client in connected:
 		if client["key"] != "internal-stargate-identity":
-			allowedSlots = getPerms(client["key"])
+			allowedSlots = await getPerms(client["key"])
 			raw = {
 				"defined":requiredSlots,
 				"allowed":allowedSlots,
@@ -334,7 +364,7 @@ async def handler(websocket):
 						else:
 							try:
 								slotNo = int(msg[0:2])
-								allowedSlots = getPerms(key)
+								allowedSlots = await getPerms(key)
 								if slotNo in allowedSlots:
 									for item in connected:
 										if item["slot"] != -1:
