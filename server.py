@@ -17,7 +17,19 @@ mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
 luaFilePath = mypath+"/lua/client.lua"
 
-headlessConfig = []
+headlessConfig = [
+	{
+		"key":"internal-stargate-identity",
+		"slot":-1,
+		"enabled":False
+	},
+	{
+		"key":publicAccessKey,
+		"slot":-1,
+		"enabled":False
+	}
+]
+baseHeadlessConfig = headlessConfig
 defaultconfig = {
 		"key":publicAccessKey,
 		"slotListType":"whitelist",
@@ -167,16 +179,17 @@ async def actuallyTransmit(message):
 			# print("Detected Slot "+str(slot))
 		except:
 			slot = None
-	print("Fetching perms for data access!")
+	if restrictDataAccess and slot:
+		print("Fetching perms for data access! Slot "+str(slot))
 	for connection in connected:
 		msg = message
-		allowedSlots = await getPerms(connection["key"])
 		try:
 			if connection["key"] != "internal-stargate-identity" or msg == "-QUERY":
 				if connection["key"] == "internal-stargate-identity" or msg != "-QUERY":
-					if slot:
-						if slot in allowedSlots or not restrictDataAccess:
-							await connection["handle"].send(msg)
+					if restrictDataAccess and slot:
+						allowedSlots = await getPerms(connection["key"])
+						if slot in allowedSlots:
+								await connection["handle"].send(msg)
 						else:
 							raw = {
 								"slot":slot,
@@ -277,7 +290,7 @@ async def handler(websocket):
 			slot = -1
 			for i in range(len(headlessConfig)):
 				check = headlessConfig[i]
-				if check.get("key") == x.get("ws-key"):
+				if check.get("key") == x.get("ws-key") and check.get("enabled"):
 					# await transmit(json.dumps({"lua":"print(\""+check.get("user")+"\",\""+check.get("key")+"\")"}))
 					# await asyncio.sleep(2)
 					slot = i
