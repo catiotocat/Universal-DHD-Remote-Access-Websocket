@@ -39,7 +39,9 @@ clientConfig = [
 	},
 	defaultconfig,
 ]
+baseClientConfig = clientConfig
 
+restrictDataAccess = False
 requiredSlots = []
 # load user config file
 try:
@@ -75,12 +77,19 @@ try:
 			else:
 				clientConfig.append(key)
 				print("Loaded Client Entry: \""+key["key"]+"\"")
+	if "restrictDataAccess" in config:
+		if config["restrictDataAccess"] == True:
+			restrictDataAccess = True
+			print("Blocking Data Access for denied slots")
 except Exception as ex:
 	print("\033[91mFailed to read config file!\033[0m")
 	print(type[ex])
 	print(ex.args)
 	print(ex)
 	print("Using default config file")
+	headlessConfig = []
+	clientConfig = baseClientConfig
+	restrictDataAccess = False
 	try:
 		configFile = open(mypath+"/config/default.json")
 		config = json.loads(configFile.read())
@@ -114,12 +123,19 @@ except Exception as ex:
 				else:
 					clientConfig.append(key)
 					print("Loaded Client Entry: \""+key["key"]+"\"")
+		if "restrictDataAccess" in config:
+			if config["restrictDataAccess"] == True:
+				restrictDataAccess = True
+				print("Blocking Data Access for denied slots")
 	except Exception as ex:
 		print("\033[91mFailed to read default config file!\033[0m")
 		print(type[ex])
 		print(ex.args)
 		print(ex)
 		print("Skipping config file loading.")
+		headlessConfig = []
+		clientConfig = baseClientConfig
+		restrictDataAccess = False
 
 maxSlotCount = 100
 connnectedSlots = []
@@ -151,12 +167,26 @@ async def actuallyTransmit(message):
 			# print("Detected Slot "+str(slot))
 		except:
 			slot = None
+	print("Fetching perms for data access!")
 	for connection in connected:
 		msg = message
+		allowedSlots = await getPerms(connection["key"])
 		try:
 			if connection["key"] != "internal-stargate-identity" or msg == "-QUERY":
 				if connection["key"] == "internal-stargate-identity" or msg != "-QUERY":
-					await connection["handle"].send(msg)
+					if slot:
+						if slot in allowedSlots or not restrictDataAccess:
+							await connection["handle"].send(msg)
+						else:
+							raw = {
+								"slot":slot,
+								"gateStatus":-1,
+								"type":"stargate"
+							}
+							msg = json.dumps(raw)
+							await connection["handle"].send(msg)
+					else:
+						await connection["handle"].send(msg)
 		except:
 			connected.remove(connection)
 
@@ -215,6 +245,7 @@ async def getPerms(accessKey):
 	return allowedSlots
 
 async def broadcastPerms():
+	print("Fetching perms for broadcast!")
 	for client in connected:
 		if client["key"] != "internal-stargate-identity":
 			allowedSlots = await getPerms(client["key"])
