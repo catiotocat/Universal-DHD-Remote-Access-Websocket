@@ -186,10 +186,11 @@ async def actuallyTransmit(message):
 		try:
 			if connection["key"] != "internal-stargate-identity" or msg == "-QUERY":
 				if connection["key"] == "internal-stargate-identity" or msg != "-QUERY":
-					if restrictDataAccess and slot:
+					if restrictDataAccess and slot != None:
 						allowedSlots = await getPerms(connection["key"])
 						if slot in allowedSlots:
-								await connection["handle"].send(msg)
+							print("Key: "+connection["key"]+" Slot: "+str(slot))
+							await connection["handle"].send(msg)
 						else:
 							raw = {
 								"slot":slot,
