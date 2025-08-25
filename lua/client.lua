@@ -2,7 +2,7 @@
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
 --The following few lines of code transfer the config to the new setting variables
-local programVersion = "1.0.3"
+local programVersion = "1.0.4"
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
 	item = configStrings[i]
@@ -1330,6 +1330,7 @@ local function mouseHandler(x,y)
 									addr = addr..string.sub(apiList[apiPage[correctedIndex]].gate_code,1,1)
 								end
 								targetAddress = addr
+								drawMain()
 							end
 						elseif x >= xsize-1 then
 							spawnInfoDialog(apiList[apiPage[correctedIndex]].gate_address)
