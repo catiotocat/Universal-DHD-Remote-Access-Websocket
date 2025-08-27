@@ -39,6 +39,7 @@
         "websocket_user":"catiotocat",
         "udhd_version":"2.0.0 Standard",
         "timer_info":{
+            "enabled":true,
             "minutes":10,
             "seconds":59,
             "text":"Next Dial: "
