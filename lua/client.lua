@@ -154,6 +154,13 @@ if argVersion then
 	return
 end
 
+if not term.isColor() then --check if terminal is valid
+	print("This program requires an advanced computer or monitor")
+	print("Press enter to continue...")
+	read()
+	return
+end
+
 if argKey then
 	myArgs = myArgs.." -K "..argKey
 end
@@ -168,6 +175,7 @@ if argUrl then
 end
 local loopEnd = false
 if argLoop then
+		
     repeat
         local layeredArgs = " -N "
         if not argNoUpdate then
