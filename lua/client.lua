@@ -1,8 +1,18 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
+local programVersion = "1.1.0" --Internal versioning variable. Used for auto-update functions.
+if not term then --Check if the program is running inside CraftOS-PC
+	print("This program was designed to run inside of CraftOS-PC")
+	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
+	print("Press enter to continue...")
+	io.read()
+	return
+end
+if not shell then --If the shell api isn't present, return the program version for update check.
+	return programVersion
+end
 --The following few lines of code transfer the config to the new setting variables
-local programVersion = "1.0.4"
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
 	item = configStrings[i]
@@ -20,7 +30,7 @@ settings.define("udhdRemoteAccess.accessKey",{
 })
 settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
-	default="wss://catio.merith.xyz/ws/",
+	default="wss://catio-api.merith.xyz/",
 	type="string"
 })
 settings.define("udhdRemoteAccess.allowUpdates",{
@@ -108,14 +118,21 @@ function update()
 		local f = fs.open(shell.getRunningProgram(),"r")
 		local og = f.readAll()
 		f.close()
-		if og ~= fileConts then
+		local func,err = load(fileConts)
+		local success,serverVersion = pcall(func,"-V")
+		if not success or not serverVersion then
+			printError("Update Failed")
+			printError("Bad program file from server")
+		elseif serverVersion ~= programVersion then
 			local f = fs.open(shell.getRunningProgram(),"w")
 			f.write(fileConts)
 			f.close()
 			print("Update Completed")
+			print("Version "..serverVersion)
 			success = true
 		else
 			print("Already Up To Date")
+			print("Version "..programVersion)
 		end
 	else
 		printError(fileConts)
