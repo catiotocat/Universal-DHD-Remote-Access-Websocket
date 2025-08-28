@@ -1,7 +1,7 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
-local programVersion = "1.1.0" --Internal versioning variable. Used for auto-update functions.
+local programVersion = "1.1.1" --Internal versioning variable. Used for auto-update functions.
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
@@ -115,9 +115,6 @@ function update()
     local fileConts = ws.receive()
 	local success = false
 	if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
-		local f = fs.open(shell.getRunningProgram(),"r")
-		local og = f.readAll()
-		f.close()
 		local func,err = load(fileConts)
 		local success,serverVersion = pcall(func,"-V")
 		if not success or not serverVersion then
