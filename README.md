@@ -8,9 +8,9 @@ The client program (client.lua) is designed to be run through CraftOS-PC.
 You can download CraftOS-PC from https://www.craftos-pc.cc/  
 An installer script is now available to help with setting up the program.
 Simply drag and drop installer.lua from file explorer onto the CraftOS-PC window then type `installer.lua` to run it.
-Note: you can run `pastebin run 6ufzzCn` in CraftOS-PC to launch the latest installer program.
 Once the installer is finished, you can type `client.lua` to run the program.
-To change settings later on you can either use the built-in `set` command or re-run the installer.
+To change settings later on you can either use the built-in `set` command or re-run the installer.  
+Note: you can run `pastebin run 6ufzzCn` in CraftOS-PC to launch the latest installer program.
 
 # Server Program
 
