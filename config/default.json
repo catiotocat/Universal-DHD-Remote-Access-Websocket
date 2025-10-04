@@ -4,6 +4,7 @@
         {
             "slot":0,
             "key":"example",
+            "requirePermsToView":false,
             "enabled":false
         }
     ],

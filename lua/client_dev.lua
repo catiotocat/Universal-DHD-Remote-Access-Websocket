@@ -1,7 +1,7 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
-local programVersion = "1.1.1" --Internal versioning variable. Used for auto-update functions.
+local programVersion = "1.1.1 DEV" --Internal versioning variable. Used for auto-update functions.
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
@@ -12,6 +12,7 @@ end
 if not shell then --If the shell api isn't present, return the program version for update check.
 	return programVersion
 end
+
 --The following few lines of code transfer the config to the new setting variables
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
@@ -42,7 +43,6 @@ settings.save() --save all changes to the computer settings
 
 local args = {...}
 local parsed = {}
-local argLoop = false
 local argUpdate = false
 local argNoUpdate = false
 myArgs = ""
@@ -78,8 +78,6 @@ for _, arg in pairs(args) do
 		argVersion = true
     elseif arg == "-N" then
         argNoUpdate = true
-    elseif arg == "-L" then
-        argLoop = true
     elseif arg == "-D" then
         argDebug = true
     elseif arg == "-H" then
@@ -93,7 +91,6 @@ if argHelp then
     print("-U - updates the program")
 	print("-W <ws url> sets the websocket url to use.")
     print("-N - disables the automatic update check")
-    print("-L - runs the program in a loop.")
     print("-D - enable debugging messages")
     print("-H - show this information")
 	print("-V - print the program version and exit.")
@@ -161,43 +158,11 @@ end
 if argKey then
 	myArgs = myArgs.." -K "..argKey
 end
-if argLoop then
-	myArgs = myArgs.." -L"
-end
 if argDebug then
     myArgs = myArgs.." -D"
 end
 if argUrl then
 	myArgs = myArgs.." -W "..argUrl
-end
-local loopEnd = false
-if argLoop then
-    repeat
-        local layeredArgs = " -N "
-        if not argNoUpdate then
-            if update() then
-				shell.run(shell.getRunningProgram()..myArgs)
-				loopEnd = true
-				break
-			end
-        end
-		if not loopEnd then
-			if argKey then
-				layeredArgs = layeredArgs.."-K "..argKey.." "
-			end
-			if argUrl then
-				layeredArgs = layeredArgs.."-W "..argUrl.." "
-			end
-			if argDebug then
-				layeredArgs = layeredArgs.."-D "
-			end
-			print("Running...")
-			sleep(1)
-			shell.run(shell.getRunningProgram()..layeredArgs)
-			sleep(5)
-		end
-    until loopEnd
-    return
 end
 
 if not argNoUpdate then
@@ -272,11 +237,13 @@ local function dumpState()
     dumpTbl.runtime = {
         running=isRunning,
         args=args,
+		ws=wsURL,
         exitMsg=exitMessage,
         accessKey=accessKey,
         callChain=callChain,
 		version=programVersion
     }
+	dumpTbl.gateData = dataTbl
     return dumpTbl,dataTbl
 end
 

@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 
 import asyncio
-# import aiohttp
 import signal
 import os
 import json
+from urllib import parse
 from websockets.asyncio.server import serve
-# global apiRequested
-# apiRequested = False
 connected = []
 
 publicAccessKey = "public"
-adminAccessKey = "admin"
 
 mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
@@ -102,7 +99,7 @@ except Exception as ex:
 	headlessConfig = []
 	clientConfig = baseClientConfig
 	restrictDataAccess = False
-	try:
+	try: # Fall back to default config file
 		configFile = open(mypath+"/config/default.json")
 		config = json.loads(configFile.read())
 		configFile.close()
@@ -139,7 +136,7 @@ except Exception as ex:
 			if config["restrictDataAccess"] == True:
 				restrictDataAccess = True
 				print("Blocking Data Access for denied slots")
-	except Exception as ex:
+	except Exception as ex: #If both files are broken, give up on config loading.
 		print("\033[91mFailed to read default config file!\033[0m")
 		print(type[ex])
 		print(ex.args)
@@ -151,24 +148,8 @@ except Exception as ex:
 
 maxSlotCount = 100
 connnectedSlots = []
-pingedSlots = []
-pongedSlots = []
 addressTable = {}
 keyTable = {}
-
-# async def apiFunc():
-# 	async with aiohttp.ClientSession() as session:
-# 		global apiRequested
-# 		while True:
-# 			await asyncio.sleep(5)
-# 			if apiRequested:
-# 				print("Making API Request...")
-# 				apiRequested = False
-# 				try:
-# 					async with session.get("https://api.rxserver.net/stargates/") as response:
-# 						await transmit(await response.text())
-# 				except:
-# 					apiRequested = True
 
 async def actuallyTransmit(message):
 	slot = None
@@ -215,6 +196,30 @@ async def transmit(message):
 			}
 			msg = json.dumps(raw)
 			await actuallyTransmit(msg)
+
+def decodeSingleVar(tbl,key):
+	if key in tbl:
+		tbl[key] = parse.unquote(tbl[key])
+	return tbl
+	
+
+def decodeVars(tbl):
+	tbl = decodeSingleVar(tbl,"timerText")
+	tbl = decodeSingleVar(tbl,"idcCODE")
+	tbl = decodeSingleVar(tbl,"addr")
+	tbl = decodeSingleVar(tbl,"group")
+	tbl = decodeSingleVar(tbl,"ws-key")
+	if "gateInfo"  in tbl:
+		gateInfo = tbl["gateInfo"]
+		gateInfo = decodeSingleVar(gateInfo,"session_name")
+		gateInfo = decodeSingleVar(gateInfo,"host_name")
+		gateInfo = decodeSingleVar(gateInfo,"gate_name")
+		gateInfo = decodeSingleVar(gateInfo,"gate_version")
+		gateInfo = decodeSingleVar(gateInfo,"dhd_version")
+		gateInfo = decodeSingleVar(gateInfo,"user_name")
+		gateInfo = decodeSingleVar(gateInfo,"access_level")
+		tbl["gateInfo"] = gateInfo
+	return tbl
 
 async def getPerms(accessKey):
 	auth = defaultconfig
@@ -288,6 +293,7 @@ async def handler(websocket):
 	elif user.startswith("{") and user.endswith("}"):
 		try:
 			x = json.loads(user)
+			x = decodeVars(x)
 			slot = -1
 			for i in range(len(headlessConfig)):
 				check = headlessConfig[i]
@@ -330,21 +336,19 @@ async def handler(websocket):
 					try:
 						async with asyncio.timeout(40):
 							msg = await websocket.recv()
-						if msg == "-PONG":
-							pongedSlots.append(item)
-						else:
-							x = json.loads(msg)
-							if "ws-key" in x:
-								del x["ws-key"]
-							x["slot"] = item
-							x["type"] = "stargate"
-							reSendPerms = False
-							if addressTable[str(item)] != x["addr"]:
-								reSendPerms = True
-							addressTable[str(item)] = x["addr"]
-							if reSendPerms:
-								await broadcastPerms()
-							await transmit(json.dumps(x))
+						x = json.loads(msg)
+						x = decodeVars(x)
+						if "ws-key" in x:
+							del x["ws-key"]
+						x["slot"] = item
+						x["type"] = "stargate"
+						reSendPerms = False
+						if addressTable[str(item)] != x["addr"]:
+							reSendPerms = True
+						addressTable[str(item)] = x["addr"]
+						if reSendPerms:
+							await broadcastPerms()
+						await transmit(json.dumps(x))
 					except TimeoutError:
 						try:
 							await websocket.send("CLOSING DUE TO INACTIVITY")
@@ -355,6 +359,7 @@ async def handler(websocket):
 						break
 					except Exception as ex:
 						print("\033[91mException in stargate handler loop\033[0m")
+						print("Stargate Slot "+str(item))
 						print(type[ex])
 						print(ex.args)
 						print(ex)
