@@ -1,7 +1,7 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
-local programVersion = "1.1.1" --Internal versioning variable. Used for auto-update functions.
+local programVersion = "1.1.3" --Internal versioning variable. Used for auto-update functions.
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
@@ -42,7 +42,6 @@ settings.save() --save all changes to the computer settings
 
 local args = {...}
 local parsed = {}
-local argLoop = false
 local argUpdate = false
 local argNoUpdate = false
 myArgs = ""
@@ -78,8 +77,6 @@ for _, arg in pairs(args) do
 		argVersion = true
     elseif arg == "-N" then
         argNoUpdate = true
-    elseif arg == "-L" then
-        argLoop = true
     elseif arg == "-D" then
         argDebug = true
     elseif arg == "-H" then
@@ -91,9 +88,8 @@ if argHelp then
     print("VALID ARGUMENTS LIST")
     print("-K <key> - sets the access key the program will use for authentication")
     print("-U - updates the program")
-	print("-W <ws url> sets the websocket url to use.")
+	print("-W <ws url> - sets the websocket url to use.")
     print("-N - disables the automatic update check")
-    print("-L - runs the program in a loop.")
     print("-D - enable debugging messages")
     print("-H - show this information")
 	print("-V - print the program version and exit.")
@@ -141,7 +137,6 @@ end
 
 if argUpdate then
     argNoUpdate = false
-    argLoop = false
     update()
     return
 end
@@ -161,44 +156,12 @@ end
 if argKey then
 	myArgs = myArgs.." -K "..argKey
 end
-if argLoop then
-	myArgs = myArgs.." -L"
-end
 if argDebug then
     myArgs = myArgs.." -D"
 end
 if argUrl then
 	myArgs = myArgs.." -W "..argUrl
-end
-local loopEnd = false
-if argLoop then
-    repeat
-        local layeredArgs = " -N "
-        if not argNoUpdate then
-            if update() then
-				shell.run(shell.getRunningProgram()..myArgs)
-				loopEnd = true
-				break
-			end
-        end
-		if not loopEnd then
-			if argKey then
-				layeredArgs = layeredArgs.."-K "..argKey.." "
-			end
-			if argUrl then
-				layeredArgs = layeredArgs.."-W "..argUrl.." "
-			end
-			if argDebug then
-				layeredArgs = layeredArgs.."-D "
-			end
-			print("Running...")
-			sleep(1)
-			shell.run(shell.getRunningProgram()..layeredArgs)
-			sleep(5)
-		end
-    until loopEnd
-    return
-end
+end	
 
 if not argNoUpdate then
 	if update() then
@@ -230,7 +193,6 @@ if not ws then printError(err) return end
 local tmr = 0
 local clearDialog = 0
 local wsRemap = {}
-local permsObtained = false
 local apiPage = {}
 local wsPage = {}
 targetAddress = ""
@@ -251,6 +213,7 @@ local function dumpState()
         apiList = apiList,
         wsTbl = wsTbl
     }
+	dumpTbl.data = dataTbl
     dumpTbl.pageInfo = {
         count=pageCount,
         active=pageNumber,
@@ -260,7 +223,6 @@ local function dumpState()
     }
     dumpTbl.misc = {
         maxSlot=maxSlot,
-        permsObtained=permsObtained,
         wsRemap=wsRemap,
         activeSlot=activeSlot,
         color=gateColor,
@@ -277,19 +239,19 @@ local function dumpState()
         callChain=callChain,
 		version=programVersion
     }
-    return dumpTbl,dataTbl
+    return dumpTbl
 end
 
 function saveDump()
-    local dumped,data = dumpState()
+    local dumped = dumpState()
     local f = fs.open("/client.dump","w")
     local str = textutils.serialize(dumped,{allow_repetitions=true})
     f.write(str)
     f.close()
-    local f = fs.open("/client.data","w")
-    local str = textutils.serialize(data,{allow_repetitions=true})
-    f.write(str)
-    f.close()
+    -- local f = fs.open("/client.data","w")
+    -- local str = textutils.serialize(data,{allow_repetitions=true})
+    -- f.write(str)
+    -- f.close()
 end
 
 local function drawDebugDialog()
@@ -999,6 +961,12 @@ function drawMain()
 		elseif x.controlState == 3 then
 			currenty = drawLine(currenty,"INCOMING WORMHOLE",1,nil,"QUERY")
 			currenty = drawLine(currenty,"PLEASE WAIT",2,nil,"QUERY")
+		elseif x.controlState == 4 then
+			currenty = drawLine(currenty,"SEQUENCE COMPLETE",1,nil,"QUERY")
+			currenty = drawLine(currenty,"PLEASE WAIT",2,nil,"QUERY")
+		elseif x.controlState == 5 then
+			currenty = drawLine(currenty,"CLOSING WORMHOLE",1,nil,"QUERY")
+			currenty = drawLine(currenty,"PLEASE WAIT",2,nil,"QUERY")
 		end
 		currenty = drawLine(currenty,"GATE INFORMATION",1,nil,"QUERY")
 		if x.addr == "" then x.addr = "------" end
@@ -1169,7 +1137,6 @@ local function parseWS(json)
 			end
 		end
 		wsRemap = x.allowed
-		permsObtained = true
         local highestSlot = 0
         for i=1,#x.defined do
             if x.defined[i] > highestSlot then
@@ -1496,10 +1463,10 @@ printError(exitMessage)
 if not success then
     local dumped, msg = pcall(saveDump)
     if dumped then
-        print("Dumps Saved to \"/client.dump\" and \"/client.data\"")
-        print("Please DM these files to catiotocat on Discord if possible.")
-        printError("WARNING: DO NOT SHARE THESE FILES WITH ANYONE ELSE")
-		print("If you are running this in CraftOS-PC on Windows, the files can be located in the directory below:")
+        print("Dump Saved to \"/client.dump\"")
+        print("Please DM this file to catiotocat on Discord if possible.")
+        printError("WARNING: DO NOT SHARE THIS FILE WITH ANYONE ELSE")
+		print("If you are running this in CraftOS-PC on Windows, the file can be found in the directory below:")
 		print("%appdata%/CraftOS-PC/computer/"..os.getComputerID())
     else
         printError("Variable Dump Failed")
