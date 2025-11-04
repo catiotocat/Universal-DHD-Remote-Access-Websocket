@@ -12,17 +12,7 @@ end
 if not shell then --If the shell api isn't present, return the program version for update check.
 	return programVersion
 end
---The following few lines of code transfer the config to the new setting variables
-local configStrings = {"accessKey","websocketUrl","allowUpdates"}
-for i=1,#configStrings do
-	item = configStrings[i]
-	settings.undefine("resoniteLink."..item)
-	local value = settings.get("resoniteLink."..item)
-	if value then
-		settings.set("udhdRemoteAccess."..item,value)
-		settings.unset("resoniteLink."..item)
-	end
-end
+
 settings.define("udhdRemoteAccess.accessKey",{
     description="Access Key for the webocket server", 
     default = "public", 

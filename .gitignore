@@ -1,3 +1,4 @@
 config/config.json
 layout.json
 ignored/*
+ignored
