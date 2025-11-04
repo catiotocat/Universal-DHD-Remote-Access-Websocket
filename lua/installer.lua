@@ -131,8 +131,7 @@ repeat
     end
 until valid and not reset
 if reset then 
-    term.setTextColor(colorError)
-    print("Exiting...")
+    printError("Exiting...")
     return
 end
 
@@ -211,8 +210,7 @@ repeat
     end
 until valid and not reset
 if reset then 
-    term.setTextColor(colorError)
-    print("Exiting...")
+    printError("Exiting...")
     return
 end
 
