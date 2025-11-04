@@ -9,6 +9,18 @@ if not term then --Check if the program is running inside CraftOS-PC
 	return
 end
 
+local args = {...}
+local argIndex = 1
+
+local function readInput()
+    if argIndex <= #args then
+        argIndex = argIndex + 1
+        return args[argIndex-1]
+    else
+        return read()
+    end
+end
+
 --The following few lines of code transfer the config to the new setting variables
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
@@ -79,7 +91,7 @@ repeat
     end
     valid = true
     term.setTextColor(colorText)
-    local response = string.upper(read())
+    local response = string.upper(readInput())
     if response == "0" or response == "" then
         wsURL = "wss://catio-api.merith.xyz/"
     elseif response == "1" then
@@ -92,7 +104,7 @@ repeat
         term.clearLine()
         term.write("> ")
         term.setTextColor(colorText)
-        wsURL = read()
+        wsURL = readInput()
     elseif response == "L" then
     elseif response == "X" then
         reset = true
@@ -105,7 +117,7 @@ repeat
         term.setTextColor(colorHeader)
         term.write("y/n> ")
         term.setTextColor(colorText)
-        response = read()
+        response = readInput()
         if string.lower(response) == "y" then
             break
         else
@@ -161,7 +173,7 @@ repeat
     end
     valid = true
     term.setTextColor(colorText)
-    local response = string.upper(read())
+    local response = string.upper(readInput())
     if response == "0" or response == "" then
         wsKey = "public"
     elseif response == "C" then
@@ -172,7 +184,7 @@ repeat
         term.clearLine()
         term.write("> ")
         term.setTextColor(colorText)
-        wsKey = read()
+        wsKey = readInput()
     elseif response == "L" then
     elseif response == "X" then
         reset = true
@@ -185,7 +197,7 @@ repeat
         term.setTextColor(colorHeader)
         term.write("y/n> ")
         term.setTextColor(colorText)
-        response = read()
+        response = readInput()
         if string.lower(response) == "y" then
             break
         else
