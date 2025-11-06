@@ -208,6 +208,7 @@ def decodeVars(tbl):
 	tbl = decodeSingleVar(tbl,"idcCODE")
 	tbl = decodeSingleVar(tbl,"addr")
 	tbl = decodeSingleVar(tbl,"group")
+	tbl = decodeSingleVar(tbl,"dialedAddr")
 	tbl = decodeSingleVar(tbl,"ws-key")
 	if "gateInfo"  in tbl:
 		gateInfo = tbl["gateInfo"]
@@ -414,7 +415,16 @@ async def handler(websocket):
 						if msg.startswith("{") and msg.endswith("}"):
 							print("Blocked JSON From Client: "+key)
 						elif msg == "-SLOTS":
-							await broadcastPerms()
+							print("Perm Request from "+key)
+							allowedSlots = await getPerms(key)
+							raw = {
+								"defined":requiredSlots,
+								"allowed":allowedSlots,
+								"online":connnectedSlots,
+								"type":"perms"
+							}
+							await websocket.send(json.dumps(raw))
+							print("\033[96mClient: "+key+" Perms: "+json.dumps(raw)+"\033[0m")
 						elif msg == "-QUERY":
 							await transmit("-QUERY")
 						else:
