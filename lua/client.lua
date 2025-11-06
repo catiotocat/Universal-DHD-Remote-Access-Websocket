@@ -1,7 +1,7 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
 
-local programVersion = "1.1.3" --Internal versioning variable. Used for auto-update functions.
+local programVersion = "1.1.4" --Internal versioning variable. Used for auto-update functions.
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
@@ -12,17 +12,7 @@ end
 if not shell then --If the shell api isn't present, return the program version for update check.
 	return programVersion
 end
---The following few lines of code transfer the config to the new setting variables
-local configStrings = {"accessKey","websocketUrl","allowUpdates"}
-for i=1,#configStrings do
-	item = configStrings[i]
-	settings.undefine("resoniteLink."..item)
-	local value = settings.get("resoniteLink."..item)
-	if value then
-		settings.set("udhdRemoteAccess."..item,value)
-		settings.unset("resoniteLink."..item)
-	end
-end
+
 settings.define("udhdRemoteAccess.accessKey",{
     description="Access Key for the webocket server", 
     default = "public", 
@@ -180,7 +170,7 @@ local apiTbl = {} --Stores api data as tables keyed by gate address
 local wsTbl = {} --Stores ws data as tables keyed by slot (strings)
 dialogState = {active=false,type="txt",id=1,text="",importantCoords={{type=0,x1=1,x2=1,y=1}},corner={x=1,y=1}}
 local buttonPOS = {}
-local wsColors = {colors.lightGray,colors.lightGray,colors.white,colors.lightBlue,colors.blue,colors.yellow,colors.red}
+local wsColors = {colors.lightGray,colors.lightGray,colors.white,colors.lightBlue,colors.purple,colors.orange,colors.lightGray}
 local gateColor = colors.white
 exitMessage = "missingno" --message shown on program exit
 local slotListMode = false -- WS List is shown when true
@@ -197,9 +187,10 @@ local apiPage = {}
 local wsPage = {}
 targetAddress = ""
 local colorPalette = {
-	colors={colors.lime,colors.red,colors.yellow,colors.black,colors.blue,colors.white,colors.lightBlue},
+	colors={colors.lime,colors.red,colors.yellow,colors.black,colors.lightBlue,colors.white,colors.blue},
 	codes={0x00FF00,0xFF0000,0xFFFF00,0x000000,0x00A0FF,0xe5e5e5,0x00ffff}
 }
+-- colorPalette.colors = {colors.brown,colors.brown,colors.brown,colors.brown,colors.brown,colors.brown,colors.brown}
 for i=1,#colorPalette.colors do
 	term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
 end

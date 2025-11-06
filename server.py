@@ -348,7 +348,10 @@ async def handler(websocket):
 						addressTable[str(item)] = x["addr"]
 						if reSendPerms:
 							await broadcastPerms()
-						await transmit(json.dumps(x))
+							await transmit(json.dumps(x))
+							await transmit("-QUERY")
+						else:
+							await transmit(json.dumps(x))
 					except TimeoutError:
 						try:
 							await websocket.send("CLOSING DUE TO INACTIVITY")
@@ -370,8 +373,8 @@ async def handler(websocket):
 					del addressTable[str(item)]
 				if str(item) in keyTable:
 					del keyTable[str(item)]
-				await transmit("-QUERY")
 				await broadcastPerms()
+				await transmit("-QUERY")
 				# await transmit(json.dumps({"lua":"print(\"death\")"}))
 				await websocket.close()
 			else:
