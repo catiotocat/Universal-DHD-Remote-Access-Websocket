@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.7"
+local programVersion = "2.0.8"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -225,7 +225,7 @@ local function fetchAPI()
     http.request(config.apiURL)
 end
 
-local function setBorderColor(color)
+local function setBorderColor(color,gate)
     programVars.borderColor = color
     windows.topWindow.setVisible(false)
     local xsize,ysize = windows.topWindow.getSize()
@@ -234,6 +234,10 @@ local function setBorderColor(color)
     windows.topWindow.setTextColor(colors.black)
     windows.topWindow.clear()
     windows.topWindow.write("Universal DHD Remote Access v"..programVersion)
+    if gate.gateStatus ~= -1 then
+        windows.topWindow.setCursorPos(xsize-5,1)
+        windows.topWindow.write(" i ")
+    end
     windows.topWindow.setCursorPos(xsize-2,1)
     windows.topWindow.setBackgroundColor(colors.red)
     windows.topWindow.setTextColor(colors.white)
@@ -309,7 +313,7 @@ local function drawMain()
     if gateStatus == 0 then 
         gateStatus = 4 
     end
-    setBorderColor(gateStatusPalette[gateStatus+2])
+    setBorderColor(gateStatusPalette[gateStatus+2],gateData)
     local allowed = false
     for i, item in pairs(data.perms.allowed) do
         if item == (gateData.slot or -1) then
@@ -491,6 +495,18 @@ local function drawMain()
             textStr = "Users: "
         end
         ypos = drawLine(ypos,false,textStr..gateData.playerCount.."/"..gateData.playerMax)
+        if gateData.sec and gateData.min then
+            local secStr = tostring(gateData.sec)
+            if #secStr == 1 then
+                secStr = "0"..secStr
+            end
+            local minStr = tostring(gateData.min)
+            if #minStr == 1 then
+                minStr = "0"..minStr
+            end
+            local tmrStr = gateData.timerText or "Timer: "
+            ypos = drawLine(ypos,false,tmrStr..minStr..":"..secStr)
+        end
     end
     if not (programVars.dialogState.enabled and programVars.dialogState.type == "info" and programVars.dialogState.source == "websocket") then
         windows.main.setVisible(true)
@@ -776,6 +792,19 @@ local function drawDialog()
                 dialog.write("Gate Version: "..gate.gateInfo.gate_version)
                 dialog.setCursorPos(1,13)
                 dialog.write("UDHD Version: "..gate.gateInfo.dhd_version)
+                if gate.sec and gate.min then
+                    local secStr = tostring(gate.sec)
+                    if #secStr == 1 then
+                        secStr = "0"..secStr
+                    end
+                    local minStr = tostring(gate.min)
+                    if #minStr == 1 then
+                        minStr = "0"..minStr
+                    end
+                    local tmrStr = gate.timerText or "Timer: "
+                    dialog.setCursorPos(1,14)
+                    dialog.write(tmrStr..minStr..":"..secStr)
+                end
             end
         elseif programVars.dialogState.type == "text" then
             dialog.setBackgroundColor(colors.black)
@@ -1139,6 +1168,14 @@ local function mouseHandler(event)
                     else
                         programVars.dialogState.enabled = true
                         programVars.dialogState.type = "exit"
+                    end
+                elseif mx > windx-6 then
+                    local index = programVars.activeSlot+1
+                    if data.wsList[index] then
+                        programVars.dialogState.enabled = true
+                        programVars.dialogState.type = "info"
+                        programVars.dialogState.source = "websocket"
+                        programVars.dialogState.target = index
                     end
                 end
             elseif windName == "dialog" then
