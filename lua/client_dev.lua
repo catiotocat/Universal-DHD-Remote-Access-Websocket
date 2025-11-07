@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.0"
+local programVersion = "2.0.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -316,6 +316,7 @@ local function drawMain()
             allowed = true
         end
     end
+    local windx,windy = windows.main.getSize()
     local ypos = 1
     programVars.mainMouseMapping = {}
     if gateStatus == -1 then -- No Data
@@ -347,7 +348,7 @@ local function drawMain()
                     end
                 end
                 ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="idc_toggle",bound1=1,bound2=#textStr})
-                ypos = drawLine(ypos,false,"IDC Code: "..gateData.idcCODE,nil,nil,{event="idc_code",bound1=1,bound2=10+#gateData.idcCODE})
+                ypos = drawLine(ypos,false,"IDC Code: "..gateData.idcCODE,nil,nil,{event="idc_code",bound1=1,bound2=windx})
             end
             local textStr = "Iris State: "
             local col1Str = "000000000000"
@@ -1035,8 +1036,7 @@ local function mouseHandler(event)
             elseif windName == "gateList" then
                 programVars.gateListOffset = programVars.gateListOffset + event[2]
             end
-        end
-        if event[1] == "mouse_up" and lastMouseEvent[1] == "mouse_click" then
+        elseif event[1] == "mouse_up" and lastMouseEvent[1] == "mouse_click" then
             local windx,windy = wind.getSize()
             if windName == "slotList" then
                  if mx == windx then --Arrow Buttons
@@ -1145,6 +1145,10 @@ local function mouseHandler(event)
                 programVars.slotListOffset = programVars.slotListOffset + amnt
             elseif windName == "gateList" then
                 programVars.gateListOffset = programVars.gateListOffset + amnt
+            else
+                if lastMouseEvent[1] == "mouse_click" then
+                    event[1] = "mouse_scroll" -- hacky way of ignoring the drag event
+                end
             end
         end
     end
