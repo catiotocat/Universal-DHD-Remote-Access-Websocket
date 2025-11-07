@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.8"
+local programVersion = "2.0.9"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -688,13 +688,17 @@ local function drawDialog()
                 dialog.setBackgroundColor(programVars.borderColor)
                 dialog.setCursorPos(1,6)
                 dialog.clearLine()
+                dialog.setBackgroundColor(colors.white)
+                dialog.setCursorPos(1,1)
+                dialog.clearLine()
                 dialog.setBackgroundColor(colors.red)
                 dialog.setTextColor(colors.white)
                 local windx,windy = dialog.getSize()
                 dialog.setCursorPos(windx-2,1)
                 dialog.write(" X ")
                 dialog.setCursorPos(1,1)
-                dialog.setBackgroundColor(colors.black)
+                dialog.setBackgroundColor(colors.white)
+                dialog.setTextColor(colors.black)
                 dialog.write("Gate Info")
                 local gate
                 for i, sg in pairs(data.apiList) do
@@ -708,6 +712,8 @@ local function drawDialog()
                     return 
                 end
                 dialog.setCursorPos(1,2)
+                dialog.setBackgroundColor(colors.black)
+                dialog.setTextColor(colors.white)
                 dialog.write("Address: "..gate.gate_address)
                 if gate.is_headless then -- Note: implement in-session code when new data structure is released
                     dialog.setTextColor(colors.lime)
@@ -725,13 +731,17 @@ local function drawDialog()
             else
                 dialog.setBackgroundColor(colors.black)
                 dialog.clear()
+                dialog.setBackgroundColor(colors.white)
+                dialog.setCursorPos(1,1)
+                dialog.clearLine()
                 dialog.setBackgroundColor(colors.red)
                 dialog.setTextColor(colors.white)
                 local windx,windy = dialog.getSize()
                 dialog.setCursorPos(windx-2,1)
                 dialog.write(" X ")
                 dialog.setCursorPos(1,1)
-                dialog.setBackgroundColor(colors.black)
+                dialog.setBackgroundColor(colors.white)
+                dialog.setTextColor(colors.black)
                 dialog.write("Slot Info")
                 local gate = data.wsList[programVars.dialogState.target]
                 if not gate then 
@@ -739,6 +749,8 @@ local function drawDialog()
                     os.queueEvent("refresh")
                     return 
                 end
+                dialog.setTextColor(colors.white)
+                dialog.setBackgroundColor(colors.black)
                 dialog.setCursorPos(1,2)
                 dialog.write("Slot Number: "..gate.slot)
                 dialog.setCursorPos(1,3)
@@ -812,13 +824,17 @@ local function drawDialog()
             dialog.setBackgroundColor(programVars.borderColor)
             dialog.setCursorPos(1,1)
             dialog.clearLine()
+            dialog.setBackgroundColor(colors.white)
+            dialog.setCursorPos(1,2)
+            dialog.clearLine()
             dialog.setBackgroundColor(colors.red)
             dialog.setTextColor(colors.white)
             local windx,windy = dialog.getSize()
             dialog.setCursorPos(windx-2,2)
             dialog.write(" X ")
             dialog.setCursorPos(1,2)
-            dialog.setBackgroundColor(colors.black)
+            dialog.setBackgroundColor(colors.white)
+            dialog.setTextColor(colors.black)
             local gate = data.wsList[programVars.activeSlot+1]
             local allowed = false
             if not gate and programVars.dialogState.target ~= "address" then
@@ -835,6 +851,8 @@ local function drawDialog()
             if programVars.dialogState.target == "address" then
                 dialog.write("Address Input")
                 dialog.setCursorPos(1,3)
+                dialog.setBackgroundColor(colors.black)
+                dialog.setTextColor(colors.white)
                 dialog.write("Enter New Target Address")
             elseif programVars.dialogState.target == "idc" then
                 if not (gate.irisPresent and gate.idcPresent and allowed) then
@@ -843,10 +861,11 @@ local function drawDialog()
                     return
                 end
                 dialog.write("IDC Input - "..string.sub(gate.addr.."------",1,6))
-                dialog.setTextColor(colors.lightBlue)
+                dialog.setBackgroundColor(colors.lightBlue)
                 dialog.write(string.sub(gate.group.."--",1,2))
-                dialog.setTextColor(colors.white)
                 dialog.setCursorPos(1,3)
+                dialog.setBackgroundColor(colors.black)
+                dialog.setTextColor(colors.white)
                 dialog.write("Enter New IDC Code")
             else
                 if gate.controlState ~= 2 or not allowed then
@@ -857,10 +876,11 @@ local function drawDialog()
                 local addr = string.sub(gate.dialedAddr,1,6)
                 local group = string.sub(gate.dialedAddr,7,8)
                 dialog.write("GDO Input - "..string.sub(addr.."------",1,6))
-                dialog.setTextColor(colors.lightBlue)
+                dialog.setBackgroundColor(colors.lightBlue)
                 dialog.write(string.sub(group.."--",1,2))
-                dialog.setTextColor(colors.white)
                 dialog.setCursorPos(1,3)
+                dialog.setBackgroundColor(colors.black)
+                dialog.setTextColor(colors.white)
                 dialog.write("Enter IDC Code to send")
             end
             dialog.setCursorPos(3,5)
