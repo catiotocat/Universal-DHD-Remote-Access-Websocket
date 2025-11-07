@@ -227,7 +227,7 @@ print("Universal DHD Remote Access Client Installer")
 term.setTextColor(colorText)
 print("Settings have been saved.")
 
-print("Downloading client.lua")
+print("Downloading udhdRemoteAccess.lua")
 local ws,err = http.websocket(settings.get("udhdRemoteAccess.websocketUrl"))
 if not ws then 
     printError("Download Failed")
@@ -240,7 +240,7 @@ ws.send("-UPDATE")
 local fileConts = ws.receive()
 local success = false
 if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
-    local f = fs.open("/client.lua","w")
+    local f = fs.open("/udhdRemoteAccess.lua","w")
     f.write(fileConts)
     f.close()
     print("Download Completed")

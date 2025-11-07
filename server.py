@@ -13,6 +13,7 @@ publicAccessKey = "public"
 mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
 luaFilePath = mypath+"/lua/client.lua"
+luaDevFilePath = mypath+"/lua/client_dev.lua"
 
 headlessConfig = [
 	{
@@ -285,6 +286,16 @@ async def handler(websocket):
 		await asyncio.sleep(1)
 		try:
 			file = open(luaFilePath)
+			await websocket.send(file.read())
+			file.close()
+		except:
+			await websocket.send("ERROR: EXCEPTION OCCURRED")
+		await asyncio.sleep(1)
+		await websocket.close()
+	elif user == "-UPDATE_DEV":
+		await asyncio.sleep(1)
+		try:
+			file = open(luaDevFilePath)
 			await websocket.send(file.read())
 			file.close()
 		except:

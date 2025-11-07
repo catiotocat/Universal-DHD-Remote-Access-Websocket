@@ -1,7 +1,7 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
+local programVersion = "1.2.0"
 
-local programVersion = "1.1.4" --Internal versioning variable. Used for auto-update functions.
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
@@ -26,6 +26,11 @@ settings.define("udhdRemoteAccess.websocketUrl",{
 settings.define("udhdRemoteAccess.allowUpdates",{
     description="Set to false to disable automatic updates", 
     default = true, 
+    type="boolean"
+})
+settings.define("udhdRemoteAccess.useDevBranch",{
+    description="Set to true to use the development branch for automatic updates.", 
+    default = false, 
     type="boolean"
 })
 settings.save() --save all changes to the computer settings
@@ -97,25 +102,39 @@ function update()
         return
     end
 	ws.receive()
-    ws.send("-UPDATE")
+    if settings.get("udhdRemoteAccess.useDevBranch") then
+		ws.send("-UPDATE_DEV")
+	else
+		ws.send("-UPDATE")
+	end
     local fileConts = ws.receive()
 	local success = false
 	if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
-		local func,err = load(fileConts)
-		local success,serverVersion = pcall(func,"-V")
-		if not success or not serverVersion then
+		--parse file
+		local start1,start2 = string.find(fileConts,"local programVersion = \"")
+		local end1,end2 = string.find(fileConts,"\"\n",start2)
+		local readVersion = string.sub(fileConts,start2+1,end1-1)
+		local validChars = "0123456789."
+		local fileValid = true
+		for i=1,#readVersion do
+			if not string.find(validChars,string.sub(readVersion,i,i)) then
+				fileValid = false
+			end
+		end
+		if not fileValid then
 			printError("Update Failed")
 			printError("Bad program file from server")
-		elseif serverVersion ~= programVersion then
+		elseif readVersion == programVersion then
+			print("Already Up To Date!")
+			print("Version: "..programVersion)
+		else
 			local f = fs.open(shell.getRunningProgram(),"w")
 			f.write(fileConts)
 			f.close()
 			print("Update Completed")
-			print("Version "..serverVersion)
+			print("Old Version: "..programVersion)
+			print("New Version: "..readVersion)
 			success = true
-		else
-			print("Already Up To Date")
-			print("Version "..programVersion)
 		end
 	else
 		printError(fileConts)
@@ -155,7 +174,6 @@ end
 
 if not argNoUpdate then
 	if update() then
-		shell.run(shell.getRunningProgram()..myArgs)
 		return
 	end
 end
