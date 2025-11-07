@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.3"
+local programVersion = "2.0.4"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -326,9 +326,14 @@ local function drawMain()
         if gateData.irisPresent then --Iris Controls
             ypos = drawLine(ypos,true,"Iris Controls")
             if gateData.idcPresent then -- idc data
-                local textStr = "IDC Enabled: "
-                local col1Str = "0000000000000"
-                local col2Str = "fffffffffffff"
+                local textStr = "Auto Mode: "
+                local col1Str = "00000000000"
+                local col2Str = "fffffffffff"
+                if useSmallForm then
+                    textStr = "Auto: "
+                    col1Str = "000000"
+                    col2Str = "ffffff"
+                end
                 if gateData.idcEN then
                     textStr = textStr.."TRUE"
                     if allowed then
@@ -349,11 +354,20 @@ local function drawMain()
                     end
                 end
                 ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="idc_toggle",bound1=1,bound2=#textStr})
-                ypos = drawLine(ypos,false,"IDC Code: "..gateData.idcCODE,nil,nil,{event="idc_code",bound1=1,bound2=windx})
+                local textStr = "Iris Code: "
+                if useSmallForm then
+                    textStr = "Code: "
+                end
+                ypos = drawLine(ypos,false,textStr..gateData.idcCODE,nil,nil,{event="idc_code",bound1=1,bound2=windx})
             end
             local textStr = "Iris State: "
             local col1Str = "000000000000"
             local col2Str = "ffffffffffff"
+            if useSmallForm then
+                textStr = "State: "
+                col1Str = "0000000"
+                col2Str = "fffffff"
+            end
             if gateData.irisClose then
                 textStr = textStr.."CLOSED"
                 if allowed then
@@ -460,13 +474,23 @@ local function drawMain()
             col2Str = col2Str.."fffff"
         end
         ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
-
-        ypos = drawLine(ypos,false,"Gate Ver: "..gateData.gateInfo.gate_version)
-        ypos = drawLine(ypos,false,"UDHD Ver: "..gateData.gateInfo.dhd_version)
-
+        local textStr = "Gate Ver: "
+        if useSmallForm then
+            textStr = "Gate: "
+        end
+        ypos = drawLine(ypos,false,textStr..gateData.gateInfo.gate_version)
+        local textStr = "UDHD Ver: "
+        if useSmallForm then
+            textStr = "UDHD: "
+        end
+        ypos = drawLine(ypos,false,textStr..gateData.gateInfo.dhd_version)
         
         ypos = drawLine(ypos,true,"Session Info")
-        ypos = drawLine(ypos,false,"User Count: "..gateData.playerCount.."/"..gateData.playerMax)
+        local textStr = "User Count: "
+        if useSmallForm then
+            textStr = "Users: "
+        end
+        ypos = drawLine(ypos,false,textStr..gateData.playerCount.."/"..gateData.playerMax)
     end
     if not (programVars.dialogState.enabled and programVars.dialogState.type == "info" and programVars.dialogState.source == "websocket") then
         windows.main.setVisible(true)
