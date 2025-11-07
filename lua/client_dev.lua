@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.2"
+local programVersion = "2.0.3"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -317,6 +317,7 @@ local function drawMain()
         end
     end
     local windx,windy = windows.main.getSize()
+    local useSmallForm = windx < 22
     local ypos = 1
     programVars.mainMouseMapping = {}
     if gateStatus == -1 then -- No Data
@@ -381,6 +382,11 @@ local function drawMain()
                 local textStr = "Target Addr: "..string.sub(programVars.targetAddress.."--------",1,8)
                 local col1Str = string.sub("000000000000000000033",1,#textStr)
                 local col2Str = string.sub("fffffffffffffffffffff",1,#textStr)
+                if useSmallForm then
+                    textStr = "Target: "..string.sub(gateData.dialedAddr.."--------",1,8)
+                    col1Str = string.sub("0000000000000033",1,#textStr)
+                    col2Str = string.sub("ffffffffffffffff",1,#textStr)
+                end
                 ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="dial_address",bound1=1,bound2=21})
                 ypos = drawLine(ypos,false,"Dial Normally",nil,nil,{event="dial_normal",bound1=1,bound2=13})
                 ypos = drawLine(ypos,false,"Dial Instantly",nil,nil,{event="dial_instant",bound1=1,bound2=14})
@@ -418,17 +424,32 @@ local function drawMain()
         local textStr = "Gate Address: "..string.sub(gateData.addr..gateData.group,1,8)
         local col1Str = string.sub("0000000000000000000033",1,#textStr)
         local col2Str = string.sub("ffffffffffffffffffffff",1,#textStr)
+        if useSmallForm then
+            textStr = "Address: "..string.sub(gateData.dialedAddr.."--------",1,8)
+            col1Str = string.sub("00000000000000033",1,#textStr)
+            col2Str = string.sub("fffffffffffffffff",1,#textStr)
+        end
         ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
         
         local textStr = "Dialing Addr: "..string.sub(gateData.dialedAddr.."--------",1,8)
         local col1Str = string.sub("0000000000000000000033",1,#textStr)
         local col2Str = string.sub("ffffffffffffffffffffff",1,#textStr)
+        if useSmallForm then
+            textStr = "Dialing: "..string.sub(gateData.dialedAddr.."--------",1,8)
+            col1Str = string.sub("00000000000000033",1,#textStr)
+            col2Str = string.sub("fffffffffffffffff",1,#textStr)
+        end
         ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
 
 
         local textStr = "Cross-Session: "
         local col1Str = "000000000000000"
         local col2Str = "fffffffffffffff"
+        if useSmallForm then
+            textStr = "CS: "
+            col1Str = "0000"
+            col2Str = "ffff"
+        end
         if gateData.gateInfo.gate_cs_en then
             textStr = textStr.."TRUE"
             col1Str = col1Str.."5555"
