@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.6"
+local programVersion = "2.0.7"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -397,7 +397,7 @@ local function drawMain()
                 local col1Str = string.sub("000000000000000000033",1,#textStr)
                 local col2Str = string.sub("fffffffffffffffffffff",1,#textStr)
                 if useSmallForm then
-                    textStr = "Target: "..string.sub(gateData.targetAddress.."--------",1,8)
+                    textStr = "Target: "..string.sub(programVars.targetAddress.."--------",1,8)
                     col1Str = string.sub("0000000000000033",1,#textStr)
                     col2Str = string.sub("ffffffffffffffff",1,#textStr)
                 end
