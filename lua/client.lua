@@ -14,9 +14,9 @@ if not shell then --If the shell api isn't present, return the program version f
 end
 
 settings.define("udhdRemoteAccess.accessKey",{
-    description="Access Key for the webocket server", 
-    default = "public", 
-    type="string"
+	description="Access Key for the webocket server", 
+	default = "public", 
+	type="string"
 })
 settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
@@ -24,14 +24,14 @@ settings.define("udhdRemoteAccess.websocketUrl",{
 	type="string"
 })
 settings.define("udhdRemoteAccess.allowUpdates",{
-    description="Set to false to disable automatic updates", 
-    default = true, 
-    type="boolean"
+	description="Set to false to disable automatic updates", 
+	default = true, 
+	type="boolean"
 })
 settings.define("udhdRemoteAccess.useDevBranch",{
-    description="Set to true to use the development branch for automatic updates.", 
-    default = false, 
-    type="boolean"
+	description="Set to true to use the development branch for automatic updates.", 
+	default = false, 
+	type="boolean"
 })
 settings.save() --save all changes to the computer settings
 
@@ -51,63 +51,63 @@ local wasKeyword = nil
 local sgURL = "https://api.rxserver.net/stargates/"
 
 if not settings.get("udhdRemoteAccess.allowUpdates") then
-    argNoUpdate = true
+	argNoUpdate = true
 end
 
 for _, arg in pairs(args) do
-    if wasKeyword then
-        if wasKeyword == "K" then
-            argKey = arg
+	if wasKeyword then
+		if wasKeyword == "K" then
+			argKey = arg
 		elseif wasKeyword == "W" then
 			argUrl = arg
 		end
-        wasKeyword = nil
-    elseif arg == "-K" then
-        wasKeyword = "K"
+		wasKeyword = nil
+	elseif arg == "-K" then
+		wasKeyword = "K"
 	elseif arg == "-W" then
 		wasKeyword = "W"
-    elseif arg == "-U" then
-        argUpdate = true
+	elseif arg == "-U" then
+		argUpdate = true
 	elseif arg == "-V" then
 		argVersion = true
-    elseif arg == "-N" then
-        argNoUpdate = true
-    elseif arg == "-D" then
-        argDebug = true
-    elseif arg == "-H" then
-        argHelp = true
-    end
+	elseif arg == "-N" then
+		argNoUpdate = true
+	elseif arg == "-D" then
+		argDebug = true
+	elseif arg == "-H" then
+		argHelp = true
+	end
 end
 
 if argHelp then
-    print("VALID ARGUMENTS LIST")
-    print("-K <key> - sets the access key the program will use for authentication")
-    print("-U - updates the program")
+	print("VALID ARGUMENTS LIST")
+	print("-K <key> - sets the access key the program will use for authentication")
+	print("-U - updates the program")
 	print("-W <ws url> - sets the websocket url to use.")
-    print("-N - disables the automatic update check")
-    print("-D - enable debugging messages")
-    print("-H - show this information")
+	print("-N - disables the automatic update check")
+	print("-D - enable debugging messages")
+	print("-H - show this information")
 	print("-V - print the program version and exit.")
-    return
+	return
 end
 
 local wsURL = argUrl or settings.get("udhdRemoteAccess.websocketUrl")
 
 function update()
-    print("Checking for Updates...")
-    local ws,err = http.websocket(wsURL)
-    if not ws then 
-        printError("Update Failed")
-        printError(err)
-        return
-    end
+	print("Checking for Updates...")
+	local ws,err = http.websocket(wsURL)
+	if not ws then 
+		printError("Update Failed")
+		printError(err)
+		return
+	end
 	ws.receive()
-    if settings.get("udhdRemoteAccess.useDevBranch") then
+	if settings.get("udhdRemoteAccess.useDevBranch") then
 		ws.send("-UPDATE_DEV")
 	else
 		ws.send("-UPDATE")
 	end
-    local fileConts = ws.receive()
+	local fileConts = ws.receive()
 	local success = false
 	if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 		--parse file
@@ -140,14 +140,14 @@ function update()
 		printError(fileConts)
 	end
 	print("Waiting for connection to close...")
-    os.pullEvent("websocket_closed")
+	os.pullEvent("websocket_closed")
 	return success
 end
 
 if argUpdate then
-    argNoUpdate = false
-    update()
-    return
+	argNoUpdate = false
+	update()
+	return
 end
 
 if argVersion then
@@ -166,7 +166,7 @@ if argKey then
 	myArgs = myArgs.." -K "..argKey
 end
 if argDebug then
-    myArgs = myArgs.." -D"
+	myArgs = myArgs.." -D"
 end
 if argUrl then
 	myArgs = myArgs.." -W "..argUrl
@@ -217,94 +217,94 @@ local callChain = {{"init"}}
 debugDialogState = {visible = false,timerid = 0, text = "missingno"}
 
 local function dumpState()
-    local dumpTbl = {}
-    local dataTbl = {
-        apiList = apiList,
-        wsTbl = wsTbl
-    }
+	local dumpTbl = {}
+	local dataTbl = {
+		apiList = apiList,
+		wsTbl = wsTbl
+	}
 	dumpTbl.data = dataTbl
-    dumpTbl.pageInfo = {
-        count=pageCount,
-        active=pageNumber,
-        ws=wsPage,
-        api=apiPage,
-        mode=slotListMode
-    }
-    dumpTbl.misc = {
-        maxSlot=maxSlot,
-        wsRemap=wsRemap,
-        activeSlot=activeSlot,
-        color=gateColor,
-        buttonPOS = buttonPOS,
-        dialogState=dialogState,
-        termSize =  {x=xsize,y=ysize},
-        targetAddress = targetAddress
-    }
-    dumpTbl.runtime = {
-        running=isRunning,
-        args=args,
-        exitMsg=exitMessage,
-        accessKey=accessKey,
-        callChain=callChain,
+	dumpTbl.pageInfo = {
+		count=pageCount,
+		active=pageNumber,
+		ws=wsPage,
+		api=apiPage,
+		mode=slotListMode
+	}
+	dumpTbl.misc = {
+		maxSlot=maxSlot,
+		wsRemap=wsRemap,
+		activeSlot=activeSlot,
+		color=gateColor,
+		buttonPOS = buttonPOS,
+		dialogState=dialogState,
+		termSize =  {x=xsize,y=ysize},
+		targetAddress = targetAddress
+	}
+	dumpTbl.runtime = {
+		running=isRunning,
+		args=args,
+		exitMsg=exitMessage,
+		accessKey=accessKey,
+		callChain=callChain,
 		version=programVersion
-    }
-    return dumpTbl
+	}
+	return dumpTbl
 end
 
 function saveDump()
-    local dumped = dumpState()
-    local f = fs.open("/client.dump","w")
-    local str = textutils.serialize(dumped,{allow_repetitions=true})
-    f.write(str)
-    f.close()
-    -- local f = fs.open("/client.data","w")
-    -- local str = textutils.serialize(data,{allow_repetitions=true})
-    -- f.write(str)
-    -- f.close()
+	local dumped = dumpState()
+	local f = fs.open("/client.dump","w")
+	local str = textutils.serialize(dumped,{allow_repetitions=true})
+	f.write(str)
+	f.close()
+	-- local f = fs.open("/client.data","w")
+	-- local str = textutils.serialize(data,{allow_repetitions=true})
+	-- f.write(str)
+	-- f.close()
 end
 
 local function drawDebugDialog()
-    table.insert(callChain,{"drawDebugDialog"})
-    local x,y = 1,1
-    if debugDialogState.visible then
-        term.setCursorPos(1,ysize)
-        term.setTextColor(colors.white)
-        term.setBackgroundColor(colors.gray)
-        term.write(debugDialogState.text)
-        x,y = term.getCursorPos()
-	    paintutils.drawLine(x,ysize,xsize,ysize,colors.gray)
-    else
-	    paintutils.drawLine(1,ysize,xsize-11,ysize,colors.black)
-    end
-    table.remove(callChain,#callChain)
+	table.insert(callChain,{"drawDebugDialog"})
+	local x,y = 1,1
+	if debugDialogState.visible then
+		term.setCursorPos(1,ysize)
+		term.setTextColor(colors.white)
+		term.setBackgroundColor(colors.gray)
+		term.write(debugDialogState.text)
+		x,y = term.getCursorPos()
+		paintutils.drawLine(x,ysize,xsize,ysize,colors.gray)
+	else
+		paintutils.drawLine(1,ysize,xsize-11,ysize,colors.black)
+	end
+	table.remove(callChain,#callChain)
 end
 
 function writeDebugDialog(text)
-    table.insert(callChain,{"writeDebugDialog",text})
-    if argDebug then
-        debugDialogState.visible = true
-        debugDialogState.text = text
-        debugDialogState.timer = os.startTimer(5)
-        drawDebugDialog()
-    end
-    table.remove(callChain,#callChain)
+	table.insert(callChain,{"writeDebugDialog",text})
+	if argDebug then
+		debugDialogState.visible = true
+		debugDialogState.text = text
+		debugDialogState.timer = os.startTimer(5)
+		drawDebugDialog()
+	end
+	table.remove(callChain,#callChain)
 end
 
 local function drawDialog() --Handles Dialog Box Display
-    table.insert(callChain,{"drawDialog"})
-    if dialogState.active == false then
+	table.insert(callChain,{"drawDialog"})
+	if dialogState.active == false then
 		term.setCursorBlink(false)
-        table.remove(callChain,#callChain)
-        return
-    end
+		table.remove(callChain,#callChain)
+		return
+	end
 	if dialogState.type == "exit" then
-        term.setCursorPos(1,2)
+		term.setCursorPos(1,2)
 		local windSize = 22
 		local wind = window.create(term.current(),1,2,windSize,3)
 		dialogState.corner.x = windSize
 		dialogState.corner.y = 6
 		wind.setBackgroundColor(colors.gray)
-        wind.setTextColor(colors.white)
+		wind.setTextColor(colors.white)
 		wind.clear()
 		wind.setCursorPos(1,1)
 		wind.write("CONFIRM ACTION")
@@ -321,39 +321,39 @@ local function drawDialog() --Handles Dialog Box Display
 			{type=1,y=4,x1=2,x2=8},
 			{type=0,y=4,x1=windSize-6,x2=windSize-1}
 		}
-        wind.setCursorPos(1,4)
+		wind.setCursorPos(1,4)
 		if dialogState.id == 1 then
 			wind.write(string.sub(dialogState.text,1,6))
 			wind.setTextColor(colors.lime)
 			wind.write(string.sub(dialogState.text,7,8))
 			if #dialogState.text < 6 then
-			    wind.setTextColor(colors.white)
+				wind.setTextColor(colors.white)
 			end   
 			if #dialogState.text < 8 then
 				wind.setCursorBlink(true)
 			end
 		else
-		    if #dialogState.text > windSize-1 then
-		        wind.write("\171")
-		        wind.write(string.sub(dialogState.text,-(windSize-2)))
-		    else
-			    wind.write(dialogState.text)
+			if #dialogState.text > windSize-1 then
+				wind.write("\171")
+				wind.write(string.sub(dialogState.text,-(windSize-2)))
+			else
+				wind.write(dialogState.text)
 			end
 			wind.setCursorBlink(true)
 		end
 	elseif dialogState.type == "sg" then
-        local dataSet = apiTbl[tostring(dialogState.id)]
-        term.setCursorPos(1,2)
+		local dataSet = apiTbl[tostring(dialogState.id)]
+		term.setCursorPos(1,2)
 		local strings = {}
 		strings.str0 = "ADDR: "..dialogState.id
 		strings.str1 = "NAME: Gate Offline"
 		strings.str2 = "HOST: nil"
 		strings.str3 = "USERS: -/-"
-        if dataSet then
-            strings.str1 = "NAME: "..dataSet.session_name
+		if dataSet then
+			strings.str1 = "NAME: "..dataSet.session_name
 			strings.str2 = "HOST: "..dataSet.owner_name
 			strings.str3 = "USERS: "..tostring(dataSet.active_users).."/"..tostring(dataSet.max_users)
-        end
+		end
 		local windSize = 18
 		for i=0,3 do
 			if #strings["str"..i] > windSize then
@@ -365,7 +365,7 @@ local function drawDialog() --Handles Dialog Box Display
 		dialogState.corner.x = windSize
 		dialogState.corner.y = 6
 		wind.setBackgroundColor(colors.gray)
-        wind.setTextColor(colors.white)
+		wind.setTextColor(colors.white)
 		wind.clear()
 		wind.setCursorPos(1,1)
 		wind.write("API GATE INFO")
@@ -429,12 +429,12 @@ local function drawDialog() --Handles Dialog Box Display
 			table.remove(callChain,#callChain)
 			return
 		end
-        term.setCursorPos(1,2)
+		term.setCursorPos(1,2)
 		if dataSet.addr == "" then dataSet.addr = "------" end
 		if dataSet.group == "" then dataSet.group = "--" end
 		local strings = {}
 		strings.str0 = "ADDR: "..dataSet.addr
-        strings.str1 = "NAME: "..dataSet.gateInfo.session_name
+		strings.str1 = "NAME: "..dataSet.gateInfo.session_name
 		strings.str2 = "HOST: "..dataSet.gateInfo.host_name
 		strings.str3 = "USERS: "..tostring(dataSet.playerCount).."/"..tostring(dataSet.playerMax)
 		strings.str4 = "CS ENABLE: "..tostring(dataSet.gateInfo.gate_cs_en)
@@ -469,7 +469,7 @@ local function drawDialog() --Handles Dialog Box Display
 		dialogState.corner.x = windSize
 		dialogState.corner.y = windYSize+1
 		wind.setBackgroundColor(colors.gray)
-        wind.setTextColor(colors.white)
+		wind.setTextColor(colors.white)
 		wind.clear()
 		wind.setCursorPos(1,1)
 		local slotString = tostring(dialogState.id)
@@ -480,9 +480,9 @@ local function drawDialog() --Handles Dialog Box Display
 		wind.setTextColor(colors.red)
 		local allowed = false
 		for i=1,#wsRemap do
-		    if dataSet.slot == wsRemap[i] then
-		        allowed = true
-		    end
+			if dataSet.slot == wsRemap[i] then
+				allowed = true
+			end
 		end
 		if allowed then
 			wind.setTextColor(colors.lime)
@@ -509,13 +509,13 @@ local function drawDialog() --Handles Dialog Box Display
 				paintutils.drawLine(dialogState.corner.x+1,i,xsize-11,i,colors.black)
 			end
 		end
-    elseif dialogState.type == "txt" then
+	elseif dialogState.type == "txt" then
 		local dataSet = wsTbl[tostring(activeSlot)]
 		if not dataSet then 
-		    dialogState.active = false
+			dialogState.active = false
 			os.queueEvent("REDRAWSCREEN")
-            table.remove(callChain,#callChain)
-		    return 
+			table.remove(callChain,#callChain)
+			return 
 		end
 		if dataSet.gateStatus == -1 then
 			dialogState.active = false
@@ -524,25 +524,25 @@ local function drawDialog() --Handles Dialog Box Display
 			return
 		end
 		if not dataSet.irisPresent and dialogState.id == 2 then 
-		    dialogState.active = false 
+			dialogState.active = false 
 			os.queueEvent("REDRAWSCREEN")
-            table.remove(callChain,#callChain)
-		    return 
+			table.remove(callChain,#callChain)
+			return 
 		end
 		if not dataSet.open and dialogState.id == 3 then
-		    dialogState.active = false 
+			dialogState.active = false 
 			os.queueEvent("REDRAWSCREEN")
-            table.remove(callChain,#callChain)
-		    return 
+			table.remove(callChain,#callChain)
+			return 
 		end
-        term.setCursorPos(1,2)
+		term.setCursorPos(1,2)
 		local str0 = "ADDR: "..dialogState.id
 		local windSize = 22
 		local wind = window.create(term.current(),1,2,windSize,4)
 		dialogState.corner.x = windSize
 		dialogState.corner.y = 5
 		wind.setBackgroundColor(colors.gray)
-        wind.setTextColor(colors.white)
+		wind.setTextColor(colors.white)
 		wind.clear()
 		wind.setCursorPos(1,1)
 		wind.write("TEXT ENTRY DIALOG")
@@ -565,32 +565,32 @@ local function drawDialog() --Handles Dialog Box Display
 			{type=1,y=5,x1=2,x2=8},
 			{type=0,y=5,x1=windSize-6,x2=windSize-1}
 		}
-        wind.setCursorPos(1,3)
+		wind.setCursorPos(1,3)
 		if dialogState.id == 1 then
 			wind.write(string.sub(dialogState.text,1,6))
 			wind.setTextColor(colors.lime)
 			wind.write(string.sub(dialogState.text,7,8))
 			if #dialogState.text < 6 then
-			    wind.setTextColor(colors.white)
+				wind.setTextColor(colors.white)
 			end   
 			if #dialogState.text < 8 then
 				wind.setCursorBlink(true)
 			end
 		else
-		    if #dialogState.text > windSize-1 then
-		        wind.write("\171")
-		        wind.write(string.sub(dialogState.text,-(windSize-2)))
-		    else
-			    wind.write(dialogState.text)
+			if #dialogState.text > windSize-1 then
+				wind.write("\171")
+				wind.write(string.sub(dialogState.text,-(windSize-2)))
+			else
+				wind.write(dialogState.text)
 			end
 			wind.setCursorBlink(true)
 		end
-    end
-    table.remove(callChain,#callChain)
+	end
+	table.remove(callChain,#callChain)
 end
 
 local function drawAddress(id,start)
-    table.insert(callChain,{"drawAddress",id,start})
+	table.insert(callChain,{"drawAddress",id,start})
 	local activeData = wsTbl[tostring(activeSlot)] or {gateStatus = -1}
 	local activeDataaddr = activeData.addr
 	if activeData.gateStatus == -1 then
@@ -619,14 +619,14 @@ local function drawAddress(id,start)
 		term.write(addr or "------")
 		local allowed = false
 		for i=1,#wsRemap do
-		    if requested.slot == wsRemap[i] then
-		        allowed = true
-		    end
+			if requested.slot == wsRemap[i] then
+				allowed = true
+			end
 		end
 		if allowed then
-		    term.setTextColor(colors.lime)
+			term.setTextColor(colors.lime)
 		else
-		    term.setTextColor(colors.red)
+			term.setTextColor(colors.red)
 		end
 		term.write(group or "--")
 		term.setTextColor(colors.white)
@@ -678,11 +678,11 @@ local function drawAddress(id,start)
 		term.setTextColor(gateColor)
 		term.setBackgroundColor(colors.black)
 	end
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 local function drawSide()
-    table.insert(callChain,{"drawSide"})
+	table.insert(callChain,{"drawSide"})
 	term.setCursorPos(xsize-10,2)
 	term.setBackgroundColor(colors.black)
 	term.setTextColor(gateColor)
@@ -705,14 +705,14 @@ local function drawSide()
 		write(" ")
 		write("GATES    ")
 		if not debugDialogState.visible then
-    		term.setCursorPos(xsize-10,ysize)
-    		-- term.setBackgroundColor(colors.lime)
+			term.setCursorPos(xsize-10,ysize)
+			-- term.setBackgroundColor(colors.lime)
 			-- term.setTextColor(colors.black)
 			write("\x07")
 			-- term.setTextColor(gateColor)
-    		-- term.setBackgroundColor(colors.black)
-    		write("SLOTS    ")
-    	end
+			-- term.setBackgroundColor(colors.black)
+			write("SLOTS    ")
+		end
 		local a = ysize-6
 		local listMax = maxSlot
 		-- if #wsRemap > 0 and false then
@@ -772,15 +772,15 @@ local function drawSide()
 		-- term.setTextColor(colors.black)
 		-- term.setTextColor(gateColor)
 		term.setBackgroundColor(colors.black)
-    	write("\x07")
+		write("\x07")
 		write("GATES    ")
 		if not debugDialogState.visible then
-    		term.setCursorPos(xsize-10,ysize)
-    		-- term.setBackgroundColor(colors.lime)
-    		write(" ")
-    		term.setBackgroundColor(colors.black)
-    		write("SLOTS    ")
-	    end
+			term.setCursorPos(xsize-10,ysize)
+			-- term.setBackgroundColor(colors.lime)
+			write(" ")
+			term.setBackgroundColor(colors.black)
+			write("SLOTS    ")
+		end
 		if drawnItems ~= availableSpace then
 			paintutils.drawFilledBox(xsize-10,drawnItems+4,xsize-1,ysize-3,colors.black)
 		end
@@ -798,11 +798,11 @@ local function drawSide()
 		term.write(tostring(pageCount))
 		term.write("->")
 	end
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 local function drawLine(currenty,text,mode,value,action)
-    table.insert(callChain,{"drawLine",currenty,text,mode,value,action})
+	table.insert(callChain,{"drawLine",currenty,text,mode,value,action})
 	if action then
 		buttonPOS[currenty] = action
 	end
@@ -851,12 +851,12 @@ local function drawLine(currenty,text,mode,value,action)
 	end
 	term.setTextColor(gateColor)
 	term.setBackgroundColor(colors.black)
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 	return currenty+1
 end
 
 local function drawHeader(printSlot,gateData)
-    table.insert(callChain,{"drawHeader",printSlot,gateData})
+	table.insert(callChain,{"drawHeader",printSlot,gateData})
 	term.setCursorPos(1,1)
 	term.setBackgroundColor(gateColor)
 	term.setTextColor(colors.black)
@@ -921,18 +921,18 @@ local function drawHeader(printSlot,gateData)
 		term.setCursorPos(xsize-(7+#programVersion),1)
 		term.write("v"..programVersion)
 	end
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function drawMain()
-    table.insert(callChain,{"drawMain"})
+	table.insert(callChain,{"drawMain"})
 	term.setCursorBlink(false)
 	buttonPOS = {}
 	local x = wsTbl[tostring(activeSlot)] or {gateStatus = -1}
 	local currenty = 2
 	local printSlot = tostring(activeSlot)
 	if activeSlot < 10 then
-	    printSlot = "0"..printSlot
+		printSlot = "0"..printSlot
 	end
 	if x.gateStatus == -1 then
 		gateColor = colors.orange
@@ -941,7 +941,7 @@ function drawMain()
 		currenty = drawLine(currenty,"NO DATA",2,nil,"QUERY")
 		gateColor = colors.cyan
 	else
-	    gateColor = wsColors[x.gateStatus+3]
+		gateColor = wsColors[x.gateStatus+3]
 		if x.irisPresent then
 			currenty = drawLine(currenty,"IRIS CONTROLS",1,nil,"QUERY")
 			if x.idcPresent then
@@ -1000,7 +1000,7 @@ function drawMain()
 		end
 	end
 	if currenty <= dialogState.corner.y and dialogState.active then
-	    currenty = dialogState.corner.y + 1
+		currenty = dialogState.corner.y + 1
 	end
 	if currenty <= ysize then
 		paintutils.drawFilledBox(1,currenty,xsize-11,ysize-1,colors.black)
@@ -1009,40 +1009,40 @@ function drawMain()
 	drawDebugDialog()
 	drawSide()
 	drawDialog()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 local function parseAPI(json)
-    table.insert(callChain,{"parseAPI",json})
-    local x = textutils.unserializeJSON(json)
-    if not x then 
-        table.remove(callChain,#callChain)
-        return
-    end
-    apiList = x
-    apiTbl = {}
-    for i=1,#x do
-    	apiTbl[x[i].gate_address] = x[i]
-    end
-    drawMain()
-    table.remove(callChain,#callChain)
+	table.insert(callChain,{"parseAPI",json})
+	local x = textutils.unserializeJSON(json)
+	if not x then 
+		table.remove(callChain,#callChain)
+		return
+	end
+	apiList = x
+	apiTbl = {}
+	for i=1,#x do
+		apiTbl[x[i].gate_address] = x[i]
+	end
+	drawMain()
+	table.remove(callChain,#callChain)
 end
 
 function query()
-    table.insert(callChain,{"query"})
+	table.insert(callChain,{"query"})
 	ws.send("-QUERY")
 	table.remove(callChain,#callChain)
 end
 
 function getAPI()
-    table.insert(callChain,{"getAPI"})
+	table.insert(callChain,{"getAPI"})
 	http.request(sgURL)
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 
 function modeChange(newM)
-    table.insert(callChain,{"modeChange",newM})
+	table.insert(callChain,{"modeChange",newM})
 	slotListMode = newM
 	if slotListMode then
 		query()
@@ -1050,11 +1050,11 @@ function modeChange(newM)
 		getAPI()
 	end
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function sendCommand(commandstr,argument)
-    table.insert(callChain,{"sendCommand",commandstr,argument})
+	table.insert(callChain,{"sendCommand",commandstr,argument})
 	if not argument then argument = "" end
 	local activeSlotStr = tostring(activeSlot)
 	if activeSlot < 10 then
@@ -1062,16 +1062,16 @@ function sendCommand(commandstr,argument)
 	end
 	ws.send(activeSlotStr..commandstr..argument)
 	writeDebugDialog("send: "..activeSlotStr..commandstr..argument)
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function spawnInfoDialog(addr)
-    table.insert(callChain,{"spawnInfoDialog",addr})
+	table.insert(callChain,{"spawnInfoDialog",addr})
 	dialogState.id = addr
 	dialogState.type = "sg"
 	dialogState.active = true
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function spawnExitDialog()
@@ -1083,95 +1083,95 @@ function spawnExitDialog()
 end
 
 function spawnWSInfoDialog(index)
-    table.insert(callChain,{"spawnWSInfoDialog",index})
+	table.insert(callChain,{"spawnWSInfoDialog",index})
 	dialogState.id = index
 	dialogState.type = "wsg"
 	dialogState.active = true
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function spawnAddressDialog()
-    table.insert(callChain,{"spawnAddressDialog"})
+	table.insert(callChain,{"spawnAddressDialog"})
 	dialogState.text = targetAddress
 	dialogState.id = 1
 	dialogState.type = "txt"
 	dialogState.active = true
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function spawnIDCDialog()
-    table.insert(callChain,{"spawnIDCDialog"})
+	table.insert(callChain,{"spawnIDCDialog"})
 	dialogState.text = wsTbl[tostring(activeSlot)].idcCODE
 	dialogState.id = 2
 	dialogState.type = "txt"
 	dialogState.active = true
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 function spawnGDODialog()
-    table.insert(callChain,{"spawnGDODialog"})
+	table.insert(callChain,{"spawnGDODialog"})
 	dialogState.text = ""
 	dialogState.id = 3
 	dialogState.type = "txt"
 	dialogState.active = true
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 local function parseWS(json)
-    table.insert(callChain,{"parseWS",json})
+	table.insert(callChain,{"parseWS",json})
 	if json == "INPUT USER" then
 		ws.send(accessKey)
 		getAPI()
 		tmr = os.startTimer(30)
-        table.remove(callChain,#callChain)
+		table.remove(callChain,#callChain)
 		return
 	elseif json == "-PING" then
-        table.remove(callChain,#callChain)
+		table.remove(callChain,#callChain)
 		return
 	end
-    local x, err = textutils.unserializeJSON(json)
-    if not x then 
-        table.remove(callChain,#callChain)
-        return 
-    end	
-    if x.type == "perms" then
-        writeDebugDialog("perms obtained from server")
+	local x, err = textutils.unserializeJSON(json)
+	if not x then 
+		table.remove(callChain,#callChain)
+		return 
+	end	
+	if x.type == "perms" then
+		writeDebugDialog("perms obtained from server")
 		for i=1,#x.defined do
 			if not wsTbl[tostring(x.defined[i])] then
 				wsTbl[tostring(x.defined[i])] = {gateStatus = -1}
 			end
 		end
 		wsRemap = x.allowed
-        local highestSlot = 0
-        for i=1,#x.defined do
-            if x.defined[i] > highestSlot then
-                highestSlot = x.defined[i]
-            end
-        end
-        for i=1,#x.online do
-            if x.online[i] > highestSlot then
-                highestSlot = x.online[i]
-            end
-        end
-        for i=0,highestSlot do
-            local exists = false
-            for j=1,#x.online do
-                if i == x.online[j] then
-                    exists = true
-                end
-            end
-            if not exists then
-                wsTbl[tostring(i)] = {slot=i,gateStatus=-1}
-            end
-        end
-        maxSlot = highestSlot
-        if activeSlot > highestSlot then
-            activeSlot = highestSlot
-        end
+		local highestSlot = 0
+		for i=1,#x.defined do
+			if x.defined[i] > highestSlot then
+				highestSlot = x.defined[i]
+			end
+		end
+		for i=1,#x.online do
+			if x.online[i] > highestSlot then
+				highestSlot = x.online[i]
+			end
+		end
+		for i=0,highestSlot do
+			local exists = false
+			for j=1,#x.online do
+				if i == x.online[j] then
+					exists = true
+				end
+			end
+			if not exists then
+				wsTbl[tostring(i)] = {slot=i,gateStatus=-1}
+			end
+		end
+		maxSlot = highestSlot
+		if activeSlot > highestSlot then
+			activeSlot = highestSlot
+		end
 		drawMain()
 	elseif x.type == "stargate" then
 		if x.slot > maxSlot then
@@ -1179,13 +1179,13 @@ local function parseWS(json)
 		end
 		local allowed = false
 		for i=1,#wsRemap do
-		    if x.slot == wsRemap[i] then
-		        allowed = true
-		    end
+			if x.slot == wsRemap[i] then
+				allowed = true
+			end
 		end
 		if not allowed then
-		    x.controlState = -1
-		    x.irisPresent = false
+			x.controlState = -1
+			x.irisPresent = false
 		end
 		wsTbl[tostring(x.slot)] = x
 		drawMain()
@@ -1193,24 +1193,24 @@ local function parseWS(json)
 	-- 	parseAPI(json)
 	-- 	writeDebugDialog("parsing api data from websocket")
 	end
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 local function dialAddress()
-    table.insert(callChain,{"dialAddress"})
+	table.insert(callChain,{"dialAddress"})
 	sendCommand("1",targetAddress)
 	table.remove(callChain,#callChain)
 end
 
 local function dialNox()
-    table.insert(callChain,{"dialNox"})
+	table.insert(callChain,{"dialNox"})
 	sendCommand("2",targetAddress)
 	table.remove(callChain,#callChain)
 end
 
 local function textDialogConfirmHandler()
-    table.insert(callChain,{"textDialogConfirmHandler"})
-    dialogState.active = false
+	table.insert(callChain,{"textDialogConfirmHandler"})
+	dialogState.active = false
 	if dialogState.id == 1 then
 		targetAddress = dialogState.text
 	elseif dialogState.id == 2 then
@@ -1234,14 +1234,14 @@ local commandIndex = { --button action keywords
 	CANCEL = 3,
 }
 local function mouseHandler(x,y)
-    table.insert(callChain,{"mouseHandler",x,y})
+	table.insert(callChain,{"mouseHandler",x,y})
 	-- if dialogState.type == "weakalert" and dialogState.active then
-    --     dialogState.active = false
-    --     if y <= dialogState.corner.y and (x <= dialogState.corner.y or x < xsize-10) then
-    --         table.remove(callChain,#callChain)
-    --         return
-    --     end
-    -- end
+	--     dialogState.active = false
+	--     if y <= dialogState.corner.y and (x <= dialogState.corner.y or x < xsize-10) then
+	--         table.remove(callChain,#callChain)
+	--         return
+	--     end
+	-- end
 	if dialogState.active then
 		local coords = dialogState.importantCoords
 		for i=1,#coords do
@@ -1252,13 +1252,13 @@ local function mouseHandler(x,y)
 					-- 	os.cancelTimer(clearDialog)
 					-- end
 				elseif coords[i].type == 1 then
-	                if dialogState.type == "txt" then
-					    textDialogConfirmHandler()
+					if dialogState.type == "txt" then
+						textDialogConfirmHandler()
 					elseif dialogState.type == "exit" then
 						isRunning = false
 						exitMessage = "Program Closed by User"
 					else
-					    dialogState.active = false
+						dialogState.active = false
 					end
 				end
 				drawMain()
@@ -1305,11 +1305,11 @@ local function mouseHandler(x,y)
 			else
 				local correctedIndex = y-3
 				if slotListMode then
-				    local wsIndex = wsPage[correctedIndex]
-				    if wsIndex then
-    					if (wsTbl[tostring(wsIndex)] or wsIndex <= maxSlot) and x < xsize-1 then
-    						activeSlot = wsIndex
-    						drawMain()
+					local wsIndex = wsPage[correctedIndex]
+					if wsIndex then
+						if (wsTbl[tostring(wsIndex)] or wsIndex <= maxSlot) and x < xsize-1 then
+							activeSlot = wsIndex
+							drawMain()
 						elseif x >= xsize-1 then
 							if wsTbl[tostring(wsIndex)] then
 								if wsTbl[tostring(wsIndex)].gateInfo then
@@ -1317,7 +1317,7 @@ local function mouseHandler(x,y)
 								end
 							end
 						end
-    				end
+					end
 				else
 					if apiList[apiPage[correctedIndex]] then
 					 	if wsTbl[tostring(activeSlot)] and x < xsize-1 then
@@ -1341,18 +1341,18 @@ local function mouseHandler(x,y)
 end
 
 local function keyHandler(key) --handle keys not handled in charHandler
-    table.insert(callChain,{"keyHandler",key})
-    if key == keys.tab then
-        saveDump()
-        writeDebugDialog("saved variable dumps")
-    end
+	table.insert(callChain,{"keyHandler",key})
+	if key == keys.tab then
+		saveDump()
+		writeDebugDialog("saved variable dumps")
+	end
 	if dialogState.type ~= "txt" then 
-        table.remove(callChain,#callChain)
-	    return 
+		table.remove(callChain,#callChain)
+		return 
 	end
 	if not dialogState.active then 
-        table.remove(callChain,#callChain)
-	    return 
+		table.remove(callChain,#callChain)
+		return 
 	end
 	if key == keys.enter then
 		textDialogConfirmHandler()
@@ -1362,96 +1362,96 @@ local function keyHandler(key) --handle keys not handled in charHandler
 		end
 	end
 	drawMain()
-    table.remove(callChain,#callChain)
+	table.remove(callChain,#callChain)
 end
 
 local validGlyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@*"
 local function charHandler(key) --Handle text input
-    table.insert(callChain,{"charHandler",key})
+	table.insert(callChain,{"charHandler",key})
 	if dialogState.type ~= "txt" then 
-        table.remove(callChain,#callChain)
-	    return 
+		table.remove(callChain,#callChain)
+		return 
 	end
 	if not dialogState.active then 
-        table.remove(callChain,#callChain)
-	    return 
+		table.remove(callChain,#callChain)
+		return 
 	end
-    if dialogState.id == 1 then
-        raw = string.upper(key)
-        if #dialogState.text >= 8 then 
-            table.remove(callChain,#callChain)
-            return 
-        end
-		if raw == "%" or raw == "." or raw == "[" or raw == "(" then 
-            table.remove(callChain,#callChain)
-		    return 
+	if dialogState.id == 1 then
+		raw = string.upper(key)
+		if #dialogState.text >= 8 then 
+			table.remove(callChain,#callChain)
+			return 
 		end
-        if string.find(dialogState.text,raw) or not string.find(validGlyphs,raw) then 
-            table.remove(callChain,#callChain)
-            return 
-        end
-        dialogState.text = dialogState.text..raw
-    else
-        dialogState.text = dialogState.text..key
-    end
-    drawMain()
-    table.remove(callChain,#callChain)
+		if raw == "%" or raw == "." or raw == "[" or raw == "(" then 
+			table.remove(callChain,#callChain)
+			return 
+		end
+		if string.find(dialogState.text,raw) or not string.find(validGlyphs,raw) then 
+			table.remove(callChain,#callChain)
+			return 
+		end
+		dialogState.text = dialogState.text..raw
+	else
+		dialogState.text = dialogState.text..key
+	end
+	drawMain()
+	table.remove(callChain,#callChain)
 end
 
 local function main()
-    table.insert(callChain,{"main"})
-    while isRunning do
-    	local event = {os.pullEventRaw()}
-    	if event[1] == "terminate" or (event[1] == "websocket_closed" and event[2]==wsURL) then
-    		isRunning = false
-    		if event[1]=="terminate" then
-    			exitMessage = "Terminated"
-    		else
-    			exitMessage = "Connection Closed"
-    		end
-    	elseif event[1] == "websocket_message" then
+	table.insert(callChain,{"main"})
+	while isRunning do
+		local event = {os.pullEventRaw()}
+		if event[1] == "terminate" or (event[1] == "websocket_closed" and event[2]==wsURL) then
+			isRunning = false
+			if event[1]=="terminate" then
+				exitMessage = "Terminated"
+			else
+				exitMessage = "Connection Closed"
+			end
+		elseif event[1] == "websocket_message" then
 			timeoutTimer = os.startTimer(40)
-    		parseWS(event[3])
-    	elseif event[1] == "timer" then
-    		if event[2] == tmr then
+			parseWS(event[3])
+		elseif event[1] == "timer" then
+			if event[2] == tmr then
 				if not slotListMode then
-    				getAPI()
+					getAPI()
 				end
-    			tmr = os.startTimer(30)
-    		-- elseif event[2] == clearDialog and (dialogState.type == "alert" or dialogState.type=="weakalert") then
-    		-- 	dialogState.active = false
-    		elseif event[2] == debugDialogState.timer then
-    		    debugDialogState.visible = false
-    		    drawMain()
+				tmr = os.startTimer(30)
+			-- elseif event[2] == clearDialog and (dialogState.type == "alert" or dialogState.type=="weakalert") then
+			-- 	dialogState.active = false
+			elseif event[2] == debugDialogState.timer then
+				debugDialogState.visible = false
+				drawMain()
 			elseif event[2] == timeoutTimer then
 				exitMessage = "Connection Timed Out"
 				isRunning = false
-    		end
-    	elseif event[1] == "term_resize" then
-    		xsize,ysize = term.getSize()
-    		dialogState.active = false
+			end
+		elseif event[1] == "term_resize" then
+			xsize,ysize = term.getSize()
+			dialogState.active = false
 			for i=1,#colorPalette.colors do
 				term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
 			end
-    		writeDebugDialog("term resize detected")
-    		drawMain()
-    	elseif event[1] == "http_success" and event[2] == sgURL then
-    		parseAPI(event[3].readAll())
-    		writeDebugDialog("api fetch success.")
-    	elseif event[1] == "http_failure" and event[2] == sgURL then
-    	    writeDebugDialog("api fetch failure.")
-    	    -- ws.send("-API")
-    	elseif event[1] == "mouse_click" then
-    		mouseHandler(event[3],event[4])
-    	elseif event[1] == "key" then
-    		keyHandler(event[2])
-    	elseif event[1] == "char" then
-    		charHandler(event[2])
+			writeDebugDialog("term resize detected")
+			drawMain()
+		elseif event[1] == "http_success" and event[2] == sgURL then
+			parseAPI(event[3].readAll())
+			writeDebugDialog("api fetch success.")
+		elseif event[1] == "http_failure" and event[2] == sgURL then
+			writeDebugDialog("api fetch failure.")
+			-- ws.send("-API")
+		elseif event[1] == "mouse_click" then
+			mouseHandler(event[3],event[4])
+		elseif event[1] == "key" then
+			keyHandler(event[2])
+		elseif event[1] == "char" then
+			charHandler(event[2])
 		elseif event[1] == "REDRAWSCREEN" then
 			drawMain()
-    	end
-    end
-    table.remove(callChain,#callChain)
+		end
+	end
+	table.remove(callChain,#callChain)
 end
 
 local success,msg = pcall(main)
@@ -1465,20 +1465,20 @@ term.setTextColor(colors.white)
 term.clear()
 term.setCursorPos(1,1)
 if not success then
-    printError("An Error has Occurred!")
-    exitMessage = msg
+	printError("An Error has Occurred!")
+	exitMessage = msg
 end
 printError(exitMessage)
 if not success then
-    local dumped, msg = pcall(saveDump)
-    if dumped then
-        print("Dump Saved to \"/client.dump\"")
-        print("Please DM this file to catiotocat on Discord if possible.")
-        printError("WARNING: DO NOT SHARE THIS FILE WITH ANYONE ELSE")
+	local dumped, msg = pcall(saveDump)
+	if dumped then
+		print("Dump Saved to \"/client.dump\"")
+		print("Please DM this file to catiotocat on Discord if possible.")
+		printError("WARNING: DO NOT SHARE THIS FILE WITH ANYONE ELSE")
 		print("If you are running this in CraftOS-PC on Windows, the file can be found in the directory below:")
 		print("%appdata%/CraftOS-PC/computer/"..os.getComputerID())
-    else
-        printError("Variable Dump Failed")
-        print("Please DM the error message printed above to catiotocat on Discord")
-    end
+	else
+		printError("Variable Dump Failed")
+		print("Please DM the error message printed above to catiotocat on Discord")
+	end
 end
