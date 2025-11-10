@@ -117,7 +117,7 @@ async def query():
 
 def decodeSingleVar(tbl,key):
 	if key in tbl:
-		tbl[key] = parse.unquote(tbl[key])
+		tbl[key] = parse.unquote_plus(tbl[key])
 	return tbl
 
 def decodeVars(tbl):
@@ -274,7 +274,7 @@ async def handleClient(websocket,initialMessage):
 		raw = json.loads(initialMessage)
 		keys = []
 		for key in raw:
-			keys.append(parse.unquote(key))
+			keys.append(parse.unquote_plus(key))
 		identity = {
 			"Websocket":websocket,
 			"KeyList":keys
