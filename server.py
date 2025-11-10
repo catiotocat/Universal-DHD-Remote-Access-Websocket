@@ -314,7 +314,7 @@ async def handleClient(websocket,initialMessage):
 				else:
 					try:
 						slotNo = int(msg[0:2])
-						allowedSlots = await getPerms(key)
+						allowedSlots = await getPerms(identity["KeyList"])
 						if slotNo in allowedSlots:
 							for gate in connectedStargates:
 								if gate["Slot"] == slotNo:
