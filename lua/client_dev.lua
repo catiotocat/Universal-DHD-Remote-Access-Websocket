@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.0.9"
+local programVersion = "2.0.10"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1303,7 +1303,7 @@ local function main()
 		drawGateList()
 		drawSlotList()
 		drawDialog()
-		event = {os.pullEventRaw()}
+		local event = {os.pullEventRaw()}
 		if event[1] == "websocket_message" then
 			os.cancelTimer(programVars.timeoutTimer)
 			programVars.timeoutTimer = os.startTimer(40)
