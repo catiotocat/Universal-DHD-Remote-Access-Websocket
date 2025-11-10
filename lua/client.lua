@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "1.3.0"
+local programVersion = "2.1.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -35,1457 +35,1342 @@ settings.define("udhdRemoteAccess.useDevBranch",{
 })
 settings.save() --save all changes to the computer settings
 
-local args = {...}
-local parsed = {}
-local argUpdate = false
-local argNoUpdate = false
-myArgs = ""
-local argKey = nil
-local argUrl = nil
-local argHelp = false
-local argDebug = false
-local argVersion = false
-
-local wasKeyword = nil
-
-local sgURL = "https://api.rxserver.net/stargates/"
-
-if not settings.get("udhdRemoteAccess.allowUpdates") then
-	argNoUpdate = true
-end
-
-for _, arg in pairs(args) do
-	if wasKeyword then
-		if wasKeyword == "K" then
-			argKey = arg
-		elseif wasKeyword == "W" then
-			argUrl = arg
-		end
-		wasKeyword = nil
-	elseif arg == "-K" then
-		wasKeyword = "K"
-	elseif arg == "-W" then
-		wasKeyword = "W"
-	elseif arg == "-U" then
-		argUpdate = true
-	elseif arg == "-V" then
-		argVersion = true
-	elseif arg == "-N" then
-		argNoUpdate = true
-	elseif arg == "-D" then
-		argDebug = true
-	elseif arg == "-H" then
-		argHelp = true
-	end
-end
-
-if argHelp then
-	print("VALID ARGUMENTS LIST")
-	print("-K <key> - sets the access key the program will use for authentication")
-	print("-U - updates the program")
-	print("-W <ws url> - sets the websocket url to use.")
-	print("-N - disables the automatic update check")
-	print("-D - enable debugging messages")
-	print("-H - show this information")
-	print("-V - print the program version and exit.")
-	return
-end
-
-local wsURL = argUrl or settings.get("udhdRemoteAccess.websocketUrl")
-
-function update()
-	print("Checking for Updates...")
-	local ws,err = http.websocket(wsURL)
-	if not ws then 
-		printError("Update Failed")
-		printError(err)
-		return
-	end
-	ws.receive()
-	if settings.get("udhdRemoteAccess.useDevBranch") then
-		ws.send("-UPDATE_DEV")
-	else
-		ws.send("-UPDATE")
-	end
-	local fileConts = ws.receive()
-	local success = false
-	if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
-		--parse file
-		local start1,start2 = string.find(fileConts,"local programVersion = \"")
-		local end1,end2 = string.find(fileConts,"\"\n",start2)
-		local readVersion = string.sub(fileConts,start2+1,end1-1)
-		local validChars = "0123456789."
-		local fileValid = true
-		for i=1,#readVersion do
-			if not string.find(validChars,string.sub(readVersion,i,i)) then
-				fileValid = false
-			end
-		end
-		if not fileValid then
-			printError("Update Failed")
-			printError("Bad program file from server")
-		elseif readVersion == programVersion then
-			print("Already Up To Date!")
-			print("Version: "..programVersion)
-		else
-			local f = fs.open(shell.getRunningProgram(),"w")
-			f.write(fileConts)
-			f.close()
-			print("Update Completed")
-			print("Old Version: "..programVersion)
-			print("New Version: "..readVersion)
-			success = true
-		end
-	else
-		printError(fileConts)
-	end
-	print("Waiting for connection to close...")
-	os.pullEvent("websocket_closed")
-	return success
-end
-
-if argUpdate then
-	argNoUpdate = false
-	update()
-	return
-end
-
-if argVersion then
-	print("client.lua v"..programVersion)
-	return
-end
-
-if not term.isColor() then --check if terminal is valid
-	print("This program requires an advanced computer or monitor")
-	print("Press enter to continue...")
-	read()
-	return
-end
-
-if argKey then
-	myArgs = myArgs.." -K "..argKey
-end
-if argDebug then
-	myArgs = myArgs.." -D"
-end
-if argUrl then
-	myArgs = myArgs.." -W "..argUrl
-end	
-
-if not argNoUpdate then
-	if update() then
-		return
-	end
-end
-
-activeSlot = 0
-local accessKey = argKey or settings.get("udhdRemoteAccess.accessKey")
-
-local keys = {}
-for key in string.gmatch(accessKey, "[^;]+") do
-	table.insert(keys,textutils.urlEncode(key))
-end
-
-accessKey = textutils.serialiseJSON(keys)
-
-isRunning = true
-xsize,ysize = term.getSize()
-local apiList = {} -- Stores raw api data as a table
-local apiTbl = {} --Stores api data as tables keyed by gate address
-local wsTbl = {} --Stores ws data as tables keyed by slot (strings)
-dialogState = {active=false,type="txt",id=1,text="",importantCoords={{type=0,x1=1,x2=1,y=1}},corner={x=1,y=1}}
-local buttonPOS = {}
-local wsColors = {colors.lightGray,colors.lightGray,colors.white,colors.lightBlue,colors.purple,colors.orange,colors.lightGray}
-local gateColor = colors.white
-exitMessage = "missingno" --message shown on program exit
-local slotListMode = false -- WS List is shown when true
-local maxSlot = 0
-pageNumber = 1
-local pageCount = 0
-print("Connecting...")
-ws,err = http.websocket(wsURL)
-if not ws then printError(err) return end
-local tmr = 0
-local clearDialog = 0
-local wsRemap = {}
-local apiPage = {}
-local wsPage = {}
-targetAddress = ""
+local arguments = {...}
+local baseTerm = term.current()
+local windows = {}
+local data = {
+	apiList = {},
+	wsList = {},
+	genList = {},
+	wsListCondensed = {},
+	perms = {
+		allowed = {},
+		online = {},
+		defined = {}
+	}
+} 
+local programVars = {
+	slotListOffset = 0,
+	gateListOffset = 0,
+	mainMouseMapping = {},
+	isRunning = true,
+	exitMessage = "missingno",
+	noResetTerminal = false,
+	activeSlot = 0,
+	apiTimer = 0,
+	timeoutTimer = 0,
+	targetAddress = "",
+	dialogState = {
+		type = "text",
+		enabled = false,
+		source = "gatelist",
+		target = "address",
+		textContent = "",
+		cursorPos = 1
+	},
+	borderColor = colors.lightGray
+}
+local lastMouseEvent = {
+	"mouse_up",
+	1, 1, 1
+}
+local gateStatusPalette = {
+	colors.cyan,
+	colors.white,
+	colors.blue,
+	colors.purple,
+	colors.orange,
+	colors.lightGray
+}
+local config =  {
+	wsURL = settings.get("udhdRemoteAccess.websocketUrl"),
+	apiURL = "https://api.rxserver.net/stargates/",
+	accessKey = settings.get("udhdRemoteAccess.accessKey"),
+	allowUpdates = settings.get("udhdRemoteAccess.allowUpdates"),
+	useDevBranch = settings.get("udhdRemoteAccess.useDevBranch")
+}
+local argStates = {
+	update = false,
+	noUpdate = false,
+	-- debug = false,
+	version = false,
+	help = false
+}
 local colorPalette = {
-	colors={colors.lime,colors.red,colors.yellow,colors.black,colors.lightBlue,colors.white,colors.blue},
-	codes={0x00FF00,0xFF0000,0xFFFF00,0x000000,0x00A0FF,0xe5e5e5,0x00ffff}
+	colors={colors.lime,colors.red,colors.yellow,colors.black,colors.blue,colors.white,colors.lightBlue},
+	codes= {0x00FF00,   0xFF0000,  0xFFFF00,     0x000000,    0x00A0FF,   0xffffff,    0x00eeee}
 }
--- colorPalette.colors = {colors.brown,colors.brown,colors.brown,colors.brown,colors.brown,colors.brown,colors.brown}
-for i=1,#colorPalette.colors do
-	term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
-end
-local timeoutTimer = os.startTimer(40)
-local callChain = {{"init"}}
-debugDialogState = {visible = false,timerid = 0, text = "missingno"}
 
-local function dumpState()
-	local dumpTbl = {}
-	local dataTbl = {
-		apiList = apiList,
-		wsTbl = wsTbl
-	}
-	dumpTbl.data = dataTbl
-	dumpTbl.pageInfo = {
-		count=pageCount,
-		active=pageNumber,
-		ws=wsPage,
-		api=apiPage,
-		mode=slotListMode
-	}
-	dumpTbl.misc = {
-		maxSlot=maxSlot,
-		wsRemap=wsRemap,
-		activeSlot=activeSlot,
-		color=gateColor,
-		buttonPOS = buttonPOS,
-		dialogState=dialogState,
-		termSize =  {x=xsize,y=ysize},
-		targetAddress = targetAddress
-	}
-	dumpTbl.runtime = {
-		running=isRunning,
-		args=args,
-		exitMsg=exitMessage,
-		accessKey=accessKey,
-		callChain=callChain,
-		version=programVersion
-	}
-	return dumpTbl
-end
-
-function saveDump()
-	local dumped = dumpState()
-	local f = fs.open("/client.dump","w")
-	local str = textutils.serialize(dumped,{allow_repetitions=true})
-	f.write(str)
-	f.close()
-	-- local f = fs.open("/client.data","w")
-	-- local str = textutils.serialize(data,{allow_repetitions=true})
-	-- f.write(str)
-	-- f.close()
-end
-
-local function drawDebugDialog()
-	table.insert(callChain,{"drawDebugDialog"})
-	local x,y = 1,1
-	if debugDialogState.visible then
-		term.setCursorPos(1,ysize)
-		term.setTextColor(colors.white)
-		term.setBackgroundColor(colors.gray)
-		term.write(debugDialogState.text)
-		x,y = term.getCursorPos()
-		paintutils.drawLine(x,ysize,xsize,ysize,colors.gray)
-	else
-		paintutils.drawLine(1,ysize,xsize-11,ysize,colors.black)
+local function init()
+	local wasKeyword = nil
+	for _, arg in pairs(arguments) do
+		if wasKeyword then
+			if wasKeyword == "K" then
+				config.accessKey = arg
+			elseif wasKeyword == "W" then
+				config.wsURL = arg
+			end
+			wasKeyword = nil
+		elseif arg == "-K" then
+			wasKeyword = "K"
+		elseif arg == "-W" then
+			wasKeyword = "W"
+		elseif arg == "-U" then
+			argStates.update = true
+			argStates.noupdate = false
+			config.allowUpdates = true
+		elseif arg == "-V" then
+			argStates.version = true
+		elseif arg == "-N" then
+			argStates.noupdate = true
+			argStates.update = false
+			config.allowUpdates = false
+		-- elseif arg == "-D" then
+		--     argState.debug = true
+		elseif arg == "-H" then
+			argStates.help = true
+		end
 	end
-	table.remove(callChain,#callChain)
-end
 
-function writeDebugDialog(text)
-	table.insert(callChain,{"writeDebugDialog",text})
-	if argDebug then
-		debugDialogState.visible = true
-		debugDialogState.text = text
-		debugDialogState.timer = os.startTimer(5)
-		drawDebugDialog()
-	end
-	table.remove(callChain,#callChain)
-end
-
-local function drawDialog() --Handles Dialog Box Display
-	table.insert(callChain,{"drawDialog"})
-	if dialogState.active == false then
-		term.setCursorBlink(false)
-		table.remove(callChain,#callChain)
+	if argStates.version then
+		print("udhdRemoteAccess.lua v"..programVersion)
+		programVars.isRunning = false
+		programVars.noResetTerminal = true
 		return
 	end
-	if dialogState.type == "exit" then
-		term.setCursorPos(1,2)
-		local windSize = 22
-		local wind = window.create(term.current(),1,2,windSize,3)
-		dialogState.corner.x = windSize
-		dialogState.corner.y = 6
-		wind.setBackgroundColor(colors.gray)
-		wind.setTextColor(colors.white)
-		wind.clear()
-		wind.setCursorPos(1,1)
-		wind.write("CONFIRM ACTION")
-		wind.setCursorPos(1,2)
-		wind.write("EXIT PROGRAM?")
-		wind.setCursorPos(1,3)
-		wind.write(" CONFIRM       CANCEL")
-		wind.setBackgroundColor(colors.red)
-		wind.setCursorPos(windSize-2,1)
-		wind.write(" X ")
-		wind.setBackgroundColor(colors.gray)
-		dialogState.importantCoords = {
-			{type=0,y=2,x1=windSize-2,x2=windSize},
-			{type=1,y=4,x1=2,x2=8},
-			{type=0,y=4,x1=windSize-6,x2=windSize-1}
-		}
-		wind.setCursorPos(1,4)
-		if dialogState.id == 1 then
-			wind.write(string.sub(dialogState.text,1,6))
-			wind.setTextColor(colors.lime)
-			wind.write(string.sub(dialogState.text,7,8))
-			if #dialogState.text < 6 then
-				wind.setTextColor(colors.white)
-			end   
-			if #dialogState.text < 8 then
-				wind.setCursorBlink(true)
+
+	if argStates.help then
+		print("VALID ARGUMENTS LIST")
+		print("-K <key> - sets the access key the program will use for authentication")
+		print("-U - updates the program then exits")
+		print("-W <ws url> - sets the websocket url to use.")
+		print("-N - disables the automatic update check")
+		-- print("-D - enable debugging messages")
+		print("-H - show this information and exit")
+		print("-V - print the program version and exit.")
+		programVars.isRunning = false
+		programVars.noResetTerminal = true
+		return
+	end
+
+	if config.allowUpdates then
+		--new update function
+		print("Checking for Updates...")
+		local ws,err = http.websocket(config.wsURL)
+		if not ws then
+			printError("Update Failed")
+			printError(err)
+			if argStates.update then
+				programVars.isRunning = false
+				programVars.noResetTerminal = true
 			end
+			return
+		end
+		ws.receive()
+		if config.useDevBranch then
+			ws.send("-UPDATE_DEV")
 		else
-			if #dialogState.text > windSize-1 then
-				wind.write("\171")
-				wind.write(string.sub(dialogState.text,-(windSize-2)))
-			else
-				wind.write(dialogState.text)
-			end
-			wind.setCursorBlink(true)
+			ws.send("-UPDATE")
 		end
-	elseif dialogState.type == "sg" then
-		local dataSet = apiTbl[tostring(dialogState.id)]
-		term.setCursorPos(1,2)
-		local strings = {}
-		strings.str0 = "ADDR: "..dialogState.id
-		strings.str1 = "NAME: Gate Offline"
-		strings.str2 = "HOST: nil"
-		strings.str3 = "USERS: -/-"
-		if dataSet then
-			strings.str1 = "NAME: "..dataSet.session_name
-			strings.str2 = "HOST: "..dataSet.owner_name
-			strings.str3 = "USERS: "..tostring(dataSet.active_users).."/"..tostring(dataSet.max_users)
-		end
-		local windSize = 18
-		for i=0,3 do
-			if #strings["str"..i] > windSize then
-				windSize = #strings["str"..i]
-			end
-		end
-		if windSize > xsize - 11 then windSize = xsize - 11 end
-		local wind = window.create(term.current(),1,2,windSize,5)
-		dialogState.corner.x = windSize
-		dialogState.corner.y = 6
-		wind.setBackgroundColor(colors.gray)
-		wind.setTextColor(colors.white)
-		wind.clear()
-		wind.setCursorPos(1,1)
-		wind.write("API GATE INFO")
-		wind.setCursorPos(1,2)
-		wind.write(strings.str0)
-		wind.setTextColor(colors.red)
-		if dataSet then
-			if dataSet.is_headless then
-				wind.setTextColor(colors.lime)
-			end
-			wind.write(dataSet.gate_code)
-		else
-			wind.setTextColor(colors.white)
-			wind.write("--")
-		end
-		wind.setTextColor(colors.white)
-		for i=1,3 do
-			wind.setCursorPos(1,2+i)
-			wind.write(strings["str"..i])
-		end
-		wind.setBackgroundColor(colors.red)
-		wind.setCursorPos(windSize-2,1)
-		wind.write(" X ")
-		wind.setBackgroundColor(colors.black)
-		dialogState.importantCoords = {{type=0,y=2,x1=windSize-2,x2=windSize}}
-		if windSize ~= xsize - 11 then
-			for i=2,6 do
-				paintutils.drawLine(dialogState.corner.x+1,i,xsize-11,i,colors.black)
-			end
-		end
-	elseif dialogState.type == "wsg" then
-		local dataSet = wsTbl[tostring(dialogState.id)]
-		if not dataSet then
-			writeDebugDialog("DrawDialog: wsg - dataset is nil")
-			dialogState.active = false
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return
-		end
-		if not dataSet.gateInfo then
-			writeDebugDialog("DrawDialog: wsg - gateInfo missing")
-			dialogState.active = false
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return
-		end
-		if not dataSet.gateInfo.session_name then
-			writeDebugDialog("DrawDialog: wsg - SOMETHING HAS GONE SERIOUSLY WRONG! dump made")
-			if argDebug then
-				saveDump()
-			end
-			dialogState.active = false
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return
-		end
-		if dialogState.id > maxSlot then
-			writeDebugDialog("DrawDialog: wsg - invalid slot")
-			dialogState.active = false
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return
-		end
-		term.setCursorPos(1,2)
-		if dataSet.addr == "" then dataSet.addr = "------" end
-		if dataSet.group == "" then dataSet.group = "--" end
-		local strings = {}
-		strings.str0 = "ADDR: "..dataSet.addr
-		strings.str1 = "NAME: "..dataSet.gateInfo.session_name
-		strings.str2 = "HOST: "..dataSet.gateInfo.host_name
-		strings.str3 = "USERS: "..tostring(dataSet.playerCount).."/"..tostring(dataSet.playerMax)
-		strings.str4 = "CS ENABLE: "..tostring(dataSet.gateInfo.gate_cs_en)
-		strings.str5 = "CS NAME: nil"
-		strings.str6 = "CS VISIBLE: "..tostring(dataSet.gateInfo.gate_cs_vis)
-		strings.str7 = "ACCESS LVL: "..dataSet.gateInfo.access_level
-		if dataSet.gateInfo.gate_name then
-			strings.str5 = "CS NAME: "..dataSet.gateInfo.gate_name
-		end
-		local windSize = 21
-		local windYSize
-		for i=0,7 do
-			if #strings["str"..i] > windSize then
-				windSize = #strings["str"..i]
-			end
-		end
-		if dataSet.gateInfo.dhd_version then
-			windYSize = 12
-			strings.str8 = "WS USER: "..dataSet.gateInfo.user_name
-			strings.str9 = "GATE VER: "..dataSet.gateInfo.gate_version
-			strings.str10 = "UDHD VER: "..dataSet.gateInfo.dhd_version
-			for i=8,10 do
-				if #strings["str"..i] > windSize then
-					windSize = #strings["str"..i]
+		local fileConts = ws.receive()
+		local success = false
+		if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+			--parse file
+			local start1,start2 = string.find(fileConts,"local programVersion = \"")
+			local end1,end2 = string.find(fileConts,"\"\n",start2)
+			local readVersion = string.sub(fileConts,start2+1,end1-1)
+			local validChars = "0123456789."
+			local fileValid = true
+			for i=1,#readVersion do
+				if not string.find(validChars,string.sub(readVersion,i,i)) then
+					fileValid = false
 				end
 			end
+			if not fileValid then
+				printError("Update Failed")
+				printError("Bad program file from server")
+			elseif readVersion == programVersion then
+				print("Already Up To Date!")
+				print("Version: "..programVersion)
+			else
+				local f = fs.open(shell.getRunningProgram(),"w")
+				f.write(fileConts)
+				f.close()
+				print("Update Completed")
+				print("Old Version: "..programVersion)
+				print("New Version: "..readVersion)
+				success = true
+			end
+			-- sleep(5)
 		else
-			windYSize = 9
-		end
-		if windSize > xsize - 11 then windSize = xsize - 11 end
-		local wind = window.create(term.current(),1,2,windSize,windYSize)
-		dialogState.corner.x = windSize
-		dialogState.corner.y = windYSize+1
-		wind.setBackgroundColor(colors.gray)
-		wind.setTextColor(colors.white)
-		wind.clear()
-		wind.setCursorPos(1,1)
-		local slotString = tostring(dialogState.id)
-		if #slotString == 1 then slotString = "0"..slotString end
-		wind.write("STARGATE SLOT "..slotString)
-		wind.setCursorPos(1,2)
-		wind.write(strings.str0)
-		wind.setTextColor(colors.red)
-		local allowed = false
-		for i=1,#wsRemap do
-			if dataSet.slot == wsRemap[i] then
-				allowed = true
+			printError(fileConts)
+			if argStates.update then
+				programVars.isRunning = false
+				programVars.noResetTerminal = true
 			end
 		end
-		if allowed then
-			wind.setTextColor(colors.lime)
-		end
-		wind.write(dataSet.group)
-		wind.setTextColor(colors.white)
-		for i=1,7 do
-			wind.setCursorPos(1,2+i)
-			wind.write(strings["str"..i])
-		end
-		if dataSet.gateInfo.dhd_version then
-			for i=8,10 do
-				wind.setCursorPos(1,2+i)
-				wind.write(strings["str"..i])
-			end
-		end
-		wind.setBackgroundColor(colors.red)
-		wind.setCursorPos(windSize-2,1)
-		wind.write(" X ")
-		wind.setBackgroundColor(colors.black)
-		dialogState.importantCoords = {{type=0,y=2,x1=windSize-2,x2=windSize}}
-		if windSize ~= xsize - 11 then
-			for i=2,windYSize+1 do
-				paintutils.drawLine(dialogState.corner.x+1,i,xsize-11,i,colors.black)
-			end
-		end
-	elseif dialogState.type == "txt" then
-		local dataSet = wsTbl[tostring(activeSlot)]
-		if not dataSet then 
-			dialogState.active = false
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return 
-		end
-		if dataSet.gateStatus == -1 then
-			dialogState.active = false
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
+		print("Waiting for connection to close...")
+		os.pullEvent("websocket_closed")
+		if success then
+			programVars.isRunning = false
+			programVars.noResetTerminal = true
+			print()
+			print("Please re-run the program.")
 			return
 		end
-		if not dataSet.irisPresent and dialogState.id == 2 then 
-			dialogState.active = false 
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return 
-		end
-		if not dataSet.open and dialogState.id == 3 then
-			dialogState.active = false 
-			os.queueEvent("REDRAWSCREEN")
-			table.remove(callChain,#callChain)
-			return 
-		end
-		term.setCursorPos(1,2)
-		local str0 = "ADDR: "..dialogState.id
-		local windSize = 22
-		local wind = window.create(term.current(),1,2,windSize,4)
-		dialogState.corner.x = windSize
-		dialogState.corner.y = 5
-		wind.setBackgroundColor(colors.gray)
-		wind.setTextColor(colors.white)
-		wind.clear()
-		wind.setCursorPos(1,1)
-		wind.write("TEXT ENTRY DIALOG")
-		wind.setCursorPos(1,2)
-		if dialogState.id == 1 then
-			wind.write("TARGET ADDRESS ENTRY")
-		elseif dialogState.id == 2 then
-			wind.write("IDC CODE ENTRY")
-		elseif dialogState.id == 3 then
-			wind.write("SEND IDC CODE ")
-		end
-		wind.setCursorPos(1,4)
-		wind.write(" CONFIRM       CANCEL")
-		wind.setBackgroundColor(colors.red)
-		wind.setCursorPos(windSize-2,1)
-		wind.write(" X ")
-		wind.setBackgroundColor(colors.gray)
-		dialogState.importantCoords = {
-			{type=0,y=2,x1=windSize-2,x2=windSize},
-			{type=1,y=5,x1=2,x2=8},
-			{type=0,y=5,x1=windSize-6,x2=windSize-1}
-		}
-		wind.setCursorPos(1,3)
-		if dialogState.id == 1 then
-			wind.write(string.sub(dialogState.text,1,6))
-			wind.setTextColor(colors.lime)
-			wind.write(string.sub(dialogState.text,7,8))
-			if #dialogState.text < 6 then
-				wind.setTextColor(colors.white)
-			end   
-			if #dialogState.text < 8 then
-				wind.setCursorBlink(true)
-			end
-		else
-			if #dialogState.text > windSize-1 then
-				wind.write("\171")
-				wind.write(string.sub(dialogState.text,-(windSize-2)))
-			else
-				wind.write(dialogState.text)
-			end
-			wind.setCursorBlink(true)
-		end
 	end
-	table.remove(callChain,#callChain)
+
+	--Convert access key list to json
+	local keys = {}
+	for key in string.gmatch(config.accessKey, "[^;]+") do
+		table.insert(keys,textutils.urlEncode(key))
+	end
+	config.accessKey = textutils.serialiseJSON(keys)
+
 end
 
-local function drawAddress(id,start)
-	table.insert(callChain,{"drawAddress",id,start})
-	local activeData = wsTbl[tostring(activeSlot)] or {gateStatus = -1}
-	local activeDataaddr = activeData.addr
-	if activeData.gateStatus == -1 then
-		activeDataaddr = "nil"
-	end
-	if slotListMode then
-		term.setCursorPos(xsize-10,id+4-start)
-		local requested = wsTbl[tostring(id)] or {gateStatus = -1}
-		local addr,group = requested.addr,requested.group
-		if requested.gateStatus == -1 then
-			addr = "------"
-			group = "--"
-		end
-		term.setBackgroundColor(colors.lime)
-		term.setTextColor(colors.black)
-		if (id) == activeSlot then
-			-- term.setBackgroundColor(colors.yellow)
-			term.write("\x07")
-		else
-			term.write(" ")
-		end
-		term.setBackgroundColor(colors.black)
-		term.setTextColor(wsColors[requested.gateStatus + 3])
-		if addr == "" then addr = "------" end
-		if group == "" then group = "--" end
-		term.write(addr or "------")
-		local allowed = false
-		for i=1,#wsRemap do
-			if requested.slot == wsRemap[i] then
-				allowed = true
-			end
-		end
-		if allowed then
-			term.setTextColor(colors.lime)
-		else
-			term.setTextColor(colors.red)
-		end
-		term.write(group or "--")
-		term.setTextColor(colors.white)
-		if requested.open then
-			term.setBackgroundColor(colors.lime)
-			term.setTextColor(colors.black)
-			if requested.irisClose then
-				term.setBackgroundColor(colors.red)
-				term.setTextColor(colors.white)
-			end
-		end
-		if requested.gateInfo then
-			term.write("i")
-		else
-			term.write(" ")
-		end
-		term.setTextColor(colors.white)
-		term.setBackgroundColor(colors.black)
-	else
-		term.setCursorPos(xsize-10,id+4-start)
-		local requested = apiList[id]
-		term.setBackgroundColor(colors.lime)
-		term.setTextColor(colors.black)
-		if requested.gate_address == activeDataaddr then
-			-- term.setBackgroundColor(colors.yellow)
-			term.write("\x07")
-		else
-			term.write(" ")
-		end
-		term.setBackgroundColor(colors.black)
-		term.setTextColor(gateColor)
-		term.write(requested.gate_address)
-		term.setTextColor(colors.red)
-		if requested.is_headless then
-			term.setTextColor(colors.lime)
-		end
-		term.write(requested.gate_code)
-		term.setTextColor(gateColor)
-		term.setBackgroundColor(colors.black)
-		if requested.gate_status == "OPEN" then
-			term.setBackgroundColor(colors.lime)
-			term.setTextColor(colors.black)
-			if requested.iris_state then
-				term.setBackgroundColor(colors.red)
-				term.setTextColor(colors.white)
-			end
-		end
-		term.write("i")
-		term.setTextColor(gateColor)
-		term.setBackgroundColor(colors.black)
-	end
-	table.remove(callChain,#callChain)
+local function fetchAPI()
+	http.request(config.apiURL)
 end
 
-local function drawSide()
-	table.insert(callChain,{"drawSide"})
-	term.setCursorPos(xsize-10,2)
-	term.setBackgroundColor(colors.black)
-	term.setTextColor(gateColor)
-	term.setBackgroundColor(gateColor)
-	for i=2,ysize do
-		term.setCursorPos(xsize,i)
-		write(" ")
-	end 
-	addrBK = {}
-	term.setCursorPos(xsize-10,2)
-	term.setBackgroundColor(colors.black)
-	if slotListMode then --lists stargates on my websocket
-		wsPage = {}
-		term.write("SLOT LIST ")
-		term.setCursorPos(xsize-10,ysize-2)
-		term.write("LIST TYPE ")
-		term.setCursorPos(xsize-10,ysize-1)
-		-- term.setBackgroundColor(colors.lime)
-		term.setBackgroundColor(colors.black)
-		write(" ")
-		write("GATES    ")
-		if not debugDialogState.visible then
-			term.setCursorPos(xsize-10,ysize)
-			-- term.setBackgroundColor(colors.lime)
-			-- term.setTextColor(colors.black)
-			write("\x07")
-			-- term.setTextColor(gateColor)
-			-- term.setBackgroundColor(colors.black)
-			write("SLOTS    ")
-		end
-		local a = ysize-6
-		local listMax = maxSlot
-		-- if #wsRemap > 0 and false then
-		--     listMax = #wsRemap - 1
-		-- end
-		local availableSpace = ysize-6
-		pageCount = math.ceil((listMax+1) / availableSpace)
-		local firstSlot = ((pageNumber-1) * availableSpace)
-		local lastSlot = firstSlot+availableSpace-1
-		if lastSlot > listMax then lastSlot = listMax end
-		for i=firstSlot,lastSlot do
-			table.insert(wsPage,i)
-			drawAddress(i,firstSlot)
-		end
-		local drawnItems = lastSlot-firstSlot+1
-		if drawnItems < 0 then drawnItems = 0 end
-		-- if drawnItems > availableSpace then drawnItems = availableSpace end
-		-- writeDebugDialog(tostring(drawnItems).." "..tostring(ysize))
-		if drawnItems ~= availableSpace then
-			paintutils.drawFilledBox(xsize-10,drawnItems+4,xsize-1,ysize-3,colors.black)
-		end
-		-- if lastSlot-firstSlot+4 < ysize-2 and lastSlot-firstSlot+3 > 0 then
-		-- 	paintutils.drawFilledBox(xsize-10,lastSlot-firstSlot+4,xsize-1,ysize-3,colors.black)
-		-- elseif lastSlot-firstSlot+4 < ysize-2 then
-		-- 	paintutils.drawFilledBox(xsize-10,3,xsize-1,ysize-3,colors.black)
-		-- end
-		term.setTextColor(gateColor)
-		term.setBackgroundColor(colors.black)
-		term.setCursorPos(xsize-10,3)
-		term.write("<-PG ")
-		term.write(tostring(pageNumber))
-		term.write("/")
-		term.write(tostring(pageCount))
-		term.write("->")
-	else --lists stargates from stargate api
-		apiPage = {}
-		local a = ysize-6
-		local availableSpace = ysize-6
-		pageCount = math.ceil(#apiList / availableSpace)
-		local firstitem = ((pageNumber-1) * availableSpace)+1
-		local lastItem = firstitem+availableSpace-1
-		if lastItem > #apiList then lastItem = #apiList end
-		for i=firstitem,lastItem do
-			drawAddress(i,firstitem)
-			table.insert(apiPage,i)
-		end
-		local drawnItems = lastItem-firstitem+1
-		if drawnItems < 0 then drawnItems = 0 end
-		-- writeDebugDialog(tostring(drawnItems).." "..tostring(ysize))
-		term.setCursorPos(xsize-10,2)
-		term.setBackgroundColor(colors.black)
-		term.write("GATE LIST ")
-		term.setCursorPos(xsize-10,ysize-2)
-		term.write("LIST TYPE ")
-		term.setCursorPos(xsize-10,ysize-1)
-		-- term.setBackgroundColor(colors.lime)
-		-- term.setTextColor(colors.black)
-		-- term.setTextColor(gateColor)
-		term.setBackgroundColor(colors.black)
-		write("\x07")
-		write("GATES    ")
-		if not debugDialogState.visible then
-			term.setCursorPos(xsize-10,ysize)
-			-- term.setBackgroundColor(colors.lime)
-			write(" ")
-			term.setBackgroundColor(colors.black)
-			write("SLOTS    ")
-		end
-		if drawnItems ~= availableSpace then
-			paintutils.drawFilledBox(xsize-10,drawnItems+4,xsize-1,ysize-3,colors.black)
-		end
-		-- if lastItem-firstitem+4 < ysize-2 and lastItem-firstitem+3 > 1 then
-		-- 	paintutils.drawFilledBox(xsize-10,lastItem-firstitem+4,xsize-1,ysize-3,colors.black)
-		-- elseif lastItem-firstitem+4 < ysize-2 then
-		-- 	paintutils.drawFilledBox(xsize-10,3,xsize-1,ysize-3,colors.black)
-		-- end
-		term.setTextColor(gateColor)
-		term.setBackgroundColor(colors.black)
-		term.setCursorPos(xsize-10,3)
-		term.write("<-PG ")
-		term.write(tostring(pageNumber))
-		term.write("/")
-		term.write(tostring(pageCount))
-		term.write("->")
+local function setBorderColor(color,gate)
+	programVars.borderColor = color
+	windows.topWindow.setVisible(false)
+	local xsize,ysize = windows.topWindow.getSize()
+	windows.topWindow.setCursorPos(1,1)
+	windows.topWindow.setBackgroundColor(color)
+	windows.topWindow.setTextColor(colors.black)
+	windows.topWindow.clear()
+	windows.topWindow.write("Universal DHD Remote Access v"..programVersion)
+	if gate.gateStatus ~= -1 then
+		windows.topWindow.setCursorPos(xsize-5,1)
+		windows.topWindow.write(" i ")
 	end
-	table.remove(callChain,#callChain)
+	windows.topWindow.setCursorPos(xsize-2,1)
+	windows.topWindow.setBackgroundColor(colors.red)
+	windows.topWindow.setTextColor(colors.white)
+	windows.topWindow.write(" X ")
+	windows.topWindow.setVisible(true)
+
+	windows.botWindow.setBackgroundColor(color)
+	windows.botWindow.clear()
+	windows.botWindow.setVisible(true)
+
+	for i=1,4 do
+		windows["vertBorder"..i].setVisible(false)
+		windows["vertBorder"..i].setBackgroundColor(color)
+		windows["vertBorder"..i].clear()
+	end
+	windows.vertBorder1.setVisible(true)
+	if not (programVars.dialogState.enabled and programVars.dialogState.type == "info" and programVars.dialogState.source == "websocket") then
+		windows.vertBorder2.setVisible(true)
+		windows.vertBorder3.setVisible(true)
+	end
+	windows.vertBorder4.setVisible(true)
 end
 
-local function drawLine(currenty,text,mode,value,action)
-	table.insert(callChain,{"drawLine",currenty,text,mode,value,action})
-	if action then
-		buttonPOS[currenty] = action
-	end
-	if not mode then
-		mode = 1
-	end
-	term.setCursorPos(1,currenty)
-	if not (dialogState.active and currenty <= dialogState.corner.y) then
-		if mode == 1 then --Header
-			term.setTextColor(colors.black)
-			term.setBackgroundColor(gateColor)
-			term.write(text)
-		elseif mode == 2 then --Normal Text
-			term.setTextColor(gateColor)
-			term.setBackgroundColor(colors.black)
-			term.write(text)
-		elseif mode == 3 then --Display Value
-			term.setTextColor(gateColor)
-			term.setBackgroundColor(colors.black)
-			term.write(text)
-			term.write(value)
-		elseif mode == 4 then --Display Address
-			term.setTextColor(gateColor)
-			term.setBackgroundColor(colors.black)
-			term.write(text)
-			term.write(string.sub(value,1,6))
-			term.setTextColor(colors.lime)
-			term.write(string.sub(value,7,8))
-		elseif mode == 5 then --Display Boolean
-			term.setTextColor(gateColor)
-			term.setBackgroundColor(colors.black)
-			term.write(text)
-			if value then
-				term.setBackgroundColor(colors.lime)
-			else
-				term.setBackgroundColor(colors.red)
-			end
-			term.write(" ")
-		end
-		local x,y = term.getCursorPos()
-		paintutils.drawLine(x,currenty,xsize-11,currenty,colors.black)
-	else
-		if dialogState.corner.x ~= xsize-11 then
-			paintutils.drawLine(dialogState.corner.x+1,currenty,xsize-11,currenty,colors.black)
-		end
-	end
-	term.setTextColor(gateColor)
-	term.setBackgroundColor(colors.black)
-	table.remove(callChain,#callChain)
-	return currenty+1
-end
-
-local function drawHeader(printSlot,gateData)
-	table.insert(callChain,{"drawHeader",printSlot,gateData})
-	term.setCursorPos(1,1)
-	term.setBackgroundColor(gateColor)
-	term.setTextColor(colors.black)
-	if gateData.gateStatus ~= -1 then
-		term.write("STARGATE SLOT "..printSlot..": ")
-		local allowed = false
-		for i=1,#wsRemap do
-			if wsRemap[i] == activeSlot then
-				allowed = true
-			end
-		end
-		if gateData.addr == "" then gateData.addr = "------" end
-		term.write(gateData.addr or "------")
-		if allowed then
-			term.setBackgroundColor(colors.lime)
-			term.setTextColor(colors.black)
-		else
-			term.setBackgroundColor(colors.red)
-			term.setTextColor(colors.white)
-		end
-		if gateData.group == "" then gateData.group = nil end
-		term.write(gateData.group or "--")
-		term.setBackgroundColor(gateColor)
-		term.setTextColor(colors.black)
-		term.write(" ")
-		term.write(tostring(gateData.chevrons or " "))
-		if gateData.incoming then
-			term.write("!")
-		elseif gateData.locked then
-			term.write("?")
-		else
-			term.write(" ")
-		end
-		if gateData.open then
-			term.write("O")
-		else
-			term.write(" ")
-		end
-	else
-		term.write("STARGATE SLOT "..printSlot)
-	end
-	if argDebug then
-		-- term.write(" v"..programVersion)
-	end
-	local cursorx,cursory = term.getCursorPos()
+local function setupWindows()
 	local xsize,ysize = term.getSize()
-	paintutils.drawFilledBox(cursorx,1,xsize-7,1,gateColor)
-	term.setBackgroundColor(gateColor)
-	term.setTextColor(colors.black)
-	if gateData.gateInfo then
-		term.write(" i ")
+	windows.dialog.setVisible(false)
+	if programVars.dialogState.enabled then
+		if programVars.dialogState.type == "info" then
+			if programVars.dialogState.source == "gatelist" then
+				windows.main.reposition(13,8,xsize-24,ysize-8)
+				windows.dialog.reposition(13,2,xsize-24,6)
+			else
+				windows.dialog.reposition(2,2,xsize-2,ysize-2)
+			end
+		elseif programVars.dialogState.type == "text" then
+			windows.main.reposition(13,2,xsize-24,ysize-7)
+			windows.dialog.reposition(13,ysize-5,xsize-24,5)
+		else -- exit dialog
+			windows.main.reposition(13,6,xsize-24,ysize-6)
+			windows.dialog.reposition(13,2,xsize-24,4)
+		end
 	else
-		term.write("   ")
+		windows.main.reposition(13,2,xsize-24,ysize-2)
 	end
-	term.setTextColor(colors.white)
-	term.setBackgroundColor(colors.red)
-	term.write(" X ")
-	term.setBackgroundColor(gateColor)
-	term.write(" ")
-	if argDebug or true then
-		term.setTextColor(colors.black)
-		term.setCursorPos(xsize-(7+#programVersion),1)
-		term.write("v"..programVersion)
-	end
-	table.remove(callChain,#callChain)
 end
 
-function drawMain()
-	table.insert(callChain,{"drawMain"})
-	term.setCursorBlink(false)
-	buttonPOS = {}
-	local x = wsTbl[tostring(activeSlot)] or {gateStatus = -1}
-	local currenty = 2
-	local printSlot = tostring(activeSlot)
-	if activeSlot < 10 then
-		printSlot = "0"..printSlot
-	end
-	if x.gateStatus == -1 then
-		gateColor = colors.orange
-		-- currenty = drawLine(currenty,"SLOT NUMBER ",3,printSlot,"QUERY")
-		-- currenty = drawLine(currenty,"STATUS CODE -1",2,nil,"QUERY")
-		currenty = drawLine(currenty,"NO DATA",2,nil,"QUERY")
-		gateColor = colors.cyan
-	else
-		gateColor = wsColors[x.gateStatus+3]
-		if x.irisPresent then
-			currenty = drawLine(currenty,"IRIS CONTROLS",1,nil,"QUERY")
-			if x.idcPresent then
-				currenty = drawLine(currenty,"IDC ENABLE ",5,x.idcEN,"idcEN")
-				currenty = drawLine(currenty,"CODE: ",3,x.idcCODE,"idcCODE")
-			end
-			currenty = drawLine(currenty,"TOGGLE IRIS ",5,not x.irisClose,"IRIS")
+local function drawMain()
+	local function drawLine(y,isHeader,text,textColor,bgColor,mouseEvent)
+		windows.main.setCursorPos(1,y)
+		if isHeader then
+			windows.main.setBackgroundColor(colors.white)
+			windows.main.setTextColor(colors.black)
+		else
+			windows.main.setBackgroundColor(colors.black)
+			windows.main.setTextColor(colors.white)
 		end
-		if x.controlState == 0 then
-			currenty = drawLine(currenty,"STARGATE DIALING",1,nil,"QUERY")
-			currenty = drawLine(currenty,"TARGET ADDR: ",4,targetAddress,"ADDR")
-			currenty = drawLine(currenty,"DIAL NORMALLY",2,nil,"DIALNORM")
-			currenty = drawLine(currenty,"DIAL INSTANTLY",2,nil,"DIALINST")
-		elseif x.controlState == 2 then
-			currenty = drawLine(currenty,"WORMHOLE IS OPEN",1,nil,"QUERY")
-			currenty = drawLine(currenty,"CLOSE WORMHOLE",2,nil,"CLOSE")
-			if x.remoteIris then
-				currenty = drawLine(currenty,"REMOTE IRIS DETECTED",1,nil,"QUERY")
+		windows.main.clearLine()
+			if not (textColor and bgColor) then
+				windows.main.write(text)
 			else
-				currenty = drawLine(currenty,"NO ACTION NEEDED",1,nil,"QUERY")
+				windows.main.blit(text,textColor,bgColor)
 			end
-			currenty = drawLine(currenty,"SEND IDC CODE",2,nil,"GDO")
-		elseif x.controlState == 1 then
-			currenty = drawLine(currenty,"DIALING IN PROGRESS",1,nil,"QUERY")
-			currenty = drawLine(currenty,"CANCEL DIAL",2,nil,"CANCEL")
-		elseif x.controlState == 3 then
-			currenty = drawLine(currenty,"INCOMING WORMHOLE",1,nil,"QUERY")
-			currenty = drawLine(currenty,"PLEASE WAIT",2,nil,"QUERY")
-		elseif x.controlState == 4 then
-			currenty = drawLine(currenty,"SEQUENCE COMPLETE",1,nil,"QUERY")
-			currenty = drawLine(currenty,"PLEASE WAIT",2,nil,"QUERY")
-		elseif x.controlState == 5 then
-			currenty = drawLine(currenty,"CLOSING WORMHOLE",1,nil,"QUERY")
-			currenty = drawLine(currenty,"PLEASE WAIT",2,nil,"QUERY")
+		if mouseEvent then
+			programVars.mainMouseMapping[y] = mouseEvent
 		end
-		currenty = drawLine(currenty,"GATE INFORMATION",1,nil,"QUERY")
-		if x.addr == "" then x.addr = "------" end
-		if x.group == "" then x.group = "--" end
-		currenty = drawLine(currenty,"GATE ADDRESS: ",4,(x.addr or "------")..(x.group or "--"),nil)
-		if x.dialedAddr ~= "" then
-			currenty = drawLine(currenty,"DIALED ADDR: ",4,x.dialedAddr,nil)
+		return y+1
+	end
+	windows.main.setVisible(false)
+	windows.main.setBackgroundColor(colors.black)
+	windows.main.clear()
+	local gateData = data.wsList[programVars.activeSlot+1] or {gateStatus = -1}
+	local gateStatus = gateData.gateStatus
+	if gateStatus == 0 then 
+		gateStatus = 4 
+	end
+	setBorderColor(gateStatusPalette[gateStatus+2],gateData)
+	local allowed = false
+	for i, item in pairs(data.perms.allowed) do
+		if item == (gateData.slot or -1) then
+			allowed = true
 		end
-		currenty = drawLine(currenty,"SESSION STATUS",1,nil,"QUERY")
-		currenty = drawLine(currenty,"CURRENT USERS: ",3,tostring(x.playerCount).."/"..tostring(x.playerMax),nil)
+	end
+	local windx,windy = windows.main.getSize()
+	local useSmallForm = windx < 22
+	local ypos = 1
+	programVars.mainMouseMapping = {}
+	if gateStatus == -1 then -- No Data
+		ypos = drawLine(ypos,false,"NO DATA","1111111","fffffff")
+	else
+		if gateData.irisPresent then --Iris Controls
+			ypos = drawLine(ypos,true,"Iris Controls")
+			if gateData.idcPresent then -- idc data
+				local textStr = "Auto Mode: "
+				local col1Str = "00000000000"
+				local col2Str = "fffffffffff"
+				if useSmallForm then
+					textStr = "Auto: "
+					col1Str = "000000"
+					col2Str = "ffffff"
+				end
+				if gateData.idcEN then
+					textStr = textStr.."TRUE"
+					if allowed then
+						col1Str = col1Str.."ffff"
+						col2Str = col2Str.."5555"
+					else 
+						col1Str = col1Str.."5555"
+						col2Str = col2Str.."ffff"
+					end
+				else
+					textStr = textStr.."FALSE"
+					if allowed then
+						col1Str = col1Str.."00000"
+						col2Str = col2Str.."eeeee"
+					else 
+						col1Str = col1Str.."eeeee"
+						col2Str = col2Str.."fffff"
+					end
+				end
+				ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="idc_toggle",bound1=1,bound2=#textStr})
+				local textStr = "Iris Code: "
+				if useSmallForm then
+					textStr = "Code: "
+				end
+				ypos = drawLine(ypos,false,textStr..gateData.idcCODE,nil,nil,{event="idc_code",bound1=1,bound2=windx})
+			end
+			local textStr = "Iris State: "
+			local col1Str = "000000000000"
+			local col2Str = "ffffffffffff"
+			if useSmallForm then
+				textStr = "State: "
+				col1Str = "0000000"
+				col2Str = "fffffff"
+			end
+			if gateData.irisClose then
+				textStr = textStr.."CLOSED"
+				if allowed then
+					col1Str = col1Str.."000000"
+					col2Str = col2Str.."eeeeee"
+				else 
+					col1Str = col1Str.."eeeeee"
+					col2Str = col2Str.."ffffff"
+				end
+			else
+				textStr = textStr.."OPEN"
+				if allowed then
+					col1Str = col1Str.."ffff"
+					col2Str = col2Str.."5555"
+				else 
+					col1Str = col1Str.."5555"
+					col2Str = col2Str.."ffff"
+				end
+			end
+			ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="iris_toggle",bound1=1,bound2=#textStr})
+		end
+		if allowed then
+			if gateData.controlState == 0 then --main
+				ypos = drawLine(ypos,true,"Stargate Dialing")
+				
+				local textStr = "Target Addr: "..string.sub(programVars.targetAddress.."--------",1,8)
+				local col1Str = string.sub("000000000000000000033",1,#textStr)
+				local col2Str = string.sub("fffffffffffffffffffff",1,#textStr)
+				if useSmallForm then
+					textStr = "Target: "..string.sub(programVars.targetAddress.."--------",1,8)
+					col1Str = string.sub("0000000000000033",1,#textStr)
+					col2Str = string.sub("ffffffffffffffff",1,#textStr)
+				end
+				ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="dial_address",bound1=1,bound2=21})
+				ypos = drawLine(ypos,false,"Dial Normally",nil,nil,{event="dial_normal",bound1=1,bound2=13})
+				ypos = drawLine(ypos,false,"Dial Instantly",nil,nil,{event="dial_instant",bound1=1,bound2=14})
+			elseif gateData.controlState == 1 then --dialing
+				ypos = drawLine(ypos,true,"Dialing in Progress")
+				ypos = drawLine(ypos,false,"Cancel Dial",nil,nil,{event="cancel",bound1=1,bound2=11})
+			elseif gateData.controlState == 2 then --open
+				ypos = drawLine(ypos,true,"Wormhole is Open")
+				ypos = drawLine(ypos,false,"Close Wormhole",nil,nil,{event="close",bound1=1,bound2=14})
+				local textStr, col1Str, col2Str
+				if gateData.remoteIris then
+					textStr = "Remote Iris Detected"
+					col1Str = "00000000000000000000"
+					col2Str = "eeeeeeeeeeeeeeeeeeee"
+				else
+					textStr = "No Action Needed"
+					col1Str = "ffffffffffffffff"
+					col2Str = "5555555555555555"
+				end
+				ypos = drawLine(ypos,true,textStr,col1Str,col2Str)
+				ypos = drawLine(ypos,false,"Send IDC Code",nil,nil,{event="gdo",bound1=1,bound2=13})
+			elseif gateData.controlState == 3 then --incoming
+				ypos = drawLine(ypos,true,"Incoming Wormhole")
+				ypos = drawLine(ypos,false,"Please Wait...")
+			elseif gateData.controlState == 4 then --sequence complete
+				ypos = drawLine(ypos,true,"Sequence Complete")
+				ypos = drawLine(ypos,false,"Please Wait...")
+			elseif gateData.controlState == 5 then --closing
+				ypos = drawLine(ypos,true,"Closing Wormhole")
+				ypos = drawLine(ypos,false,"Please Wait...")
+			end
+		end
+		ypos = drawLine(ypos,true,"Stargate Info")
+
+		local textStr = "Gate Address: "..string.sub(gateData.addr..gateData.group,1,8)
+		local col1Str = string.sub("0000000000000000000033",1,#textStr)
+		local col2Str = string.sub("ffffffffffffffffffffff",1,#textStr)
+		if useSmallForm then
+			textStr = "Address: "..string.sub(gateData.addr..gateData.group,1,8)
+			col1Str = string.sub("00000000000000033",1,#textStr)
+			col2Str = string.sub("fffffffffffffffff",1,#textStr)
+		end
+		ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
 		
-		if x.min then
-			local lastSave = tostring(x.sec)
-			if #lastSave == 1 then
-				lastSave = "0"..lastSave
+		local textStr = "Dialing Addr: "..string.sub(gateData.dialedAddr.."--------",1,8)
+		local col1Str = string.sub("0000000000000000000033",1,#textStr)
+		local col2Str = string.sub("ffffffffffffffffffffff",1,#textStr)
+		if useSmallForm then
+			textStr = "Dialing: "..string.sub(gateData.dialedAddr.."--------",1,8)
+			col1Str = string.sub("00000000000000033",1,#textStr)
+			col2Str = string.sub("fffffffffffffffff",1,#textStr)
+		end
+		ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
+
+
+		local textStr = "Cross-Session: "
+		local col1Str = "000000000000000"
+		local col2Str = "fffffffffffffff"
+		if useSmallForm then
+			textStr = "CS: "
+			col1Str = "0000"
+			col2Str = "ffff"
+		end
+		if gateData.gateInfo.gate_cs_en then
+			textStr = textStr.."TRUE"
+			col1Str = col1Str.."5555"
+			col2Str = col2Str.."ffff"
+		else
+			textStr = textStr.."FALSE"
+			col1Str = col1Str.."eeeee"
+			col2Str = col2Str.."fffff"
+		end
+		ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
+		local textStr = "Gate Ver: "
+		if useSmallForm then
+			textStr = "Gate: "
+		end
+		ypos = drawLine(ypos,false,textStr..gateData.gateInfo.gate_version)
+		local textStr = "UDHD Ver: "
+		if useSmallForm then
+			textStr = "UDHD: "
+		end
+		ypos = drawLine(ypos,false,textStr..gateData.gateInfo.dhd_version)
+		
+		ypos = drawLine(ypos,true,"Session Info")
+		local textStr = "User Count: "
+		if useSmallForm then
+			textStr = "Users: "
+		end
+		ypos = drawLine(ypos,false,textStr..gateData.playerCount.."/"..gateData.playerMax)
+		if gateData.sec and gateData.min then
+			local secStr = tostring(gateData.sec)
+			if #secStr == 1 then
+				secStr = "0"..secStr
 			end
-			lastSave = tostring(x.min)..":"..lastSave
-			if #lastSave == 4 then
-				lastSave = "0"..lastSave
+			local minStr = tostring(gateData.min)
+			if #minStr == 1 then
+				minStr = "0"..minStr
 			end
-			currenty = drawLine(currenty,x.timerText or "TIMER: ",3,lastSave,nil)
+			local tmrStr = gateData.timerText or "Timer: "
+			ypos = drawLine(ypos,false,tmrStr..minStr..":"..secStr)
 		end
 	end
-	if currenty <= dialogState.corner.y and dialogState.active then
-		currenty = dialogState.corner.y + 1
+	if not (programVars.dialogState.enabled and programVars.dialogState.type == "info" and programVars.dialogState.source == "websocket") then
+		windows.main.setVisible(true)
 	end
-	if currenty <= ysize then
-		paintutils.drawFilledBox(1,currenty,xsize-11,ysize-1,colors.black)
-	end
-	drawHeader(printSlot,x)
-	drawDebugDialog()
-	drawSide()
-	drawDialog()
-	table.remove(callChain,#callChain)
 end
 
-local function parseAPI(json)
-	table.insert(callChain,{"parseAPI",json})
-	local x = textutils.unserializeJSON(json)
-	if not x then 
-		table.remove(callChain,#callChain)
-		return
+local function drawGateList()
+	local myWindow = windows.gateList
+	local xsize,ysize = myWindow.getSize()
+	local function drawEntry(ypos,address,code,status,gtype)
+		myWindow.setCursorPos(1,ypos)
+		myWindow.setBackgroundColor(colors.black)
+		myWindow.setTextColor(colors.white)
+		myWindow.write(address)
+		if gtype == 1 then
+			myWindow.setTextColor(colors.lime)
+		elseif gtype == 2 then
+			myWindow.setTextColor(colors.yellow)
+		else
+			myWindow.setTextColor(colors.red)
+		end
+		myWindow.write(code)
+		if status == 1 then
+			myWindow.setTextColor(colors.black)
+			myWindow.setBackgroundColor(colors.lime)
+		elseif status == 2 then
+			myWindow.setTextColor(colors.white)
+			myWindow.setBackgroundColor(colors.red)
+		else
+			myWindow.setTextColor(colors.white)
+		end
+		myWindow.write("i")
 	end
-	apiList = x
-	apiTbl = {}
-	for i=1,#x do
-		apiTbl[x[i].gate_address] = x[i]
+	myWindow.setVisible(false)
+	myWindow.setBackgroundColor(colors.black)
+	myWindow.setTextColor(colors.white)
+	myWindow.clear()
+	myWindow.setCursorPos(1,1)
+	myWindow.write("Gate List")
+
+	while ysize+programVars.gateListOffset-2 >= #data.apiList and not (programVars.gateListOffset <= 0) do
+		programVars.gateListOffset = programVars.gateListOffset - 1
 	end
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function query()
-	table.insert(callChain,{"query"})
-	ws.send("-QUERY")
-	table.remove(callChain,#callChain)
-end
-
-function getAPI()
-	table.insert(callChain,{"getAPI"})
-	http.request(sgURL)
-	table.remove(callChain,#callChain)
-end
-
-
-function modeChange(newM)
-	table.insert(callChain,{"modeChange",newM})
-	slotListMode = newM
-	if slotListMode then
-		query()
+	if programVars.gateListOffset < 0 then
+		programVars.gateListOffset = 0
+	end
+	if programVars.gateListOffset ~= 0 then
+		myWindow.write("\x18")
 	else
-		getAPI()
+		myWindow.write("|")
 	end
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function sendCommand(commandstr,argument)
-	table.insert(callChain,{"sendCommand",commandstr,argument})
-	if not argument then argument = "" end
-	local activeSlotStr = tostring(activeSlot)
-	if activeSlot < 10 then
-		activeSlotStr = "0"..tostring(activeSlot)
-	end
-	ws.send(activeSlotStr..commandstr..argument)
-	writeDebugDialog("send: "..activeSlotStr..commandstr..argument)
-	table.remove(callChain,#callChain)
-end
-
-function spawnInfoDialog(addr)
-	table.insert(callChain,{"spawnInfoDialog",addr})
-	dialogState.id = addr
-	dialogState.type = "sg"
-	dialogState.active = true
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function spawnExitDialog()
-	table.insert(callChain,{"spawnExitDialog"})
-	dialogState.type = "exit"
-	dialogState.active = true
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function spawnWSInfoDialog(index)
-	table.insert(callChain,{"spawnWSInfoDialog",index})
-	dialogState.id = index
-	dialogState.type = "wsg"
-	dialogState.active = true
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function spawnAddressDialog()
-	table.insert(callChain,{"spawnAddressDialog"})
-	dialogState.text = targetAddress
-	dialogState.id = 1
-	dialogState.type = "txt"
-	dialogState.active = true
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function spawnIDCDialog()
-	table.insert(callChain,{"spawnIDCDialog"})
-	dialogState.text = wsTbl[tostring(activeSlot)].idcCODE
-	dialogState.id = 2
-	dialogState.type = "txt"
-	dialogState.active = true
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-function spawnGDODialog()
-	table.insert(callChain,{"spawnGDODialog"})
-	dialogState.text = ""
-	dialogState.id = 3
-	dialogState.type = "txt"
-	dialogState.active = true
-	drawMain()
-	table.remove(callChain,#callChain)
-end
-
-local function parseWS(json)
-	table.insert(callChain,{"parseWS",json})
-	if json == "INPUT USER" then
-		ws.send(accessKey)
-		getAPI()
-		tmr = os.startTimer(30)
-		table.remove(callChain,#callChain)
-		return
-	elseif json == "-PING" then
-		table.remove(callChain,#callChain)
-		return
-	end
-	local x, err = textutils.unserializeJSON(json)
-	if not x then 
-		table.remove(callChain,#callChain)
-		return 
-	end	
-	if x.type == "perms" then
-		writeDebugDialog("perms obtained from server")
-		for i=1,#x.defined do
-			if not wsTbl[tostring(x.defined[i])] then
-				wsTbl[tostring(x.defined[i])] = {gateStatus = -1}
-			end
-		end
-		wsRemap = x.allowed
-		local highestSlot = 0
-		for i=1,#x.defined do
-			if x.defined[i] > highestSlot then
-				highestSlot = x.defined[i]
-			end
-		end
-		for i=1,#x.online do
-			if x.online[i] > highestSlot then
-				highestSlot = x.online[i]
-			end
-		end
-		for i=0,highestSlot do
-			local exists = false
-			for j=1,#x.online do
-				if i == x.online[j] then
-					exists = true
+	for i=2,ysize do
+		local index = i+programVars.gateListOffset-1
+		local gate = data.apiList[index]
+		if gate then
+			local status = 0
+			if gate.gate_status == "OPEN" then
+				if gate.iris_state then
+					status = 2
+				else
+					status = 1
 				end
 			end
-			if not exists then
-				wsTbl[tostring(i)] = {slot=i,gateStatus=-1}
+			local gtype = 0
+			if gate.is_headless then
+				gtype = 1
 			end
+			--Note: in-session gates have gtype of 2
+			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype)
+		else
+			myWindow.setCursorPos(xsize,i)
+			myWindow.clearLine()
 		end
-		maxSlot = highestSlot
-		if activeSlot > highestSlot then
-			activeSlot = highestSlot
+		local drawArrow = data.apiList[index+1] and i == ysize
+		myWindow.setTextColor(colors.white)
+		myWindow.setBackgroundColor(colors.black)
+		if drawArrow then
+			myWindow.write("\x19")
+		else
+			myWindow.write("|")
 		end
-		drawMain()
-	elseif x.type == "stargate" then
-		if x.slot > maxSlot then
-			maxSlot = x.slot
-		end
-		local allowed = false
-		for i=1,#wsRemap do
-			if x.slot == wsRemap[i] then
-				allowed = true
-			end
-		end
-		if not allowed then
-			x.controlState = -1
-			x.irisPresent = false
-		end
-		wsTbl[tostring(x.slot)] = x
-		drawMain()
-	-- elseif not x.type then
-	-- 	parseAPI(json)
-	-- 	writeDebugDialog("parsing api data from websocket")
 	end
-	table.remove(callChain,#callChain)
-end
-
-local function dialAddress()
-	table.insert(callChain,{"dialAddress"})
-	sendCommand("1",targetAddress)
-	table.remove(callChain,#callChain)
-end
-
-local function dialNox()
-	table.insert(callChain,{"dialNox"})
-	sendCommand("2",targetAddress)
-	table.remove(callChain,#callChain)
-end
-
-local function textDialogConfirmHandler()
-	table.insert(callChain,{"textDialogConfirmHandler"})
-	dialogState.active = false
-	if dialogState.id == 1 then
-		targetAddress = dialogState.text
-	elseif dialogState.id == 2 then
-		sendCommand("7",dialogState.text)
-	elseif dialogState.id == 3 then
-		sendCommand("8",dialogState.text)
+	if not (programVars.dialogState.enabled and programVars.dialogState.type == "info" and programVars.dialogState.source == "websocket") then
+		myWindow.setVisible(true)
 	end
-	table.remove(callChain,#callChain)
 end
 
-local commandIndex = { --button action keywords
-	QUERY = query,
-	idcEN = 6,
-	IRIS = 5,
-	idcCODE = spawnIDCDialog,
-	ADDR = spawnAddressDialog,
-	GDO = spawnGDODialog,
-	DIALNORM = dialAddress,
-	DIALINST = dialNox,
-	CLOSE = 4,
-	CANCEL = 3,
-}
-local function mouseHandler(x,y)
-	table.insert(callChain,{"mouseHandler",x,y})
-	-- if dialogState.type == "weakalert" and dialogState.active then
-	--     dialogState.active = false
-	--     if y <= dialogState.corner.y and (x <= dialogState.corner.y or x < xsize-10) then
-	--         table.remove(callChain,#callChain)
-	--         return
-	--     end
-	-- end
-	if dialogState.active then
-		local coords = dialogState.importantCoords
-		for i=1,#coords do
-			if coords[i].x1 <= x and x <= coords[i].x2 and y == coords[i].y then
-				if coords[i].type == 0 then
-					dialogState.active = false
-					-- if dialogState.type == "alert" then
-					-- 	os.cancelTimer(clearDialog)
-					-- end
-				elseif coords[i].type == 1 then
-					if dialogState.type == "txt" then
-						textDialogConfirmHandler()
-					elseif dialogState.type == "exit" then
-						isRunning = false
-						exitMessage = "Program Closed by User"
-					else
-						dialogState.active = false
-					end
-				end
-				drawMain()
-			end
+local function drawSlotList()
+	local myWindow = windows.slotList
+	local xsize,ysize = myWindow.getSize()
+	local function drawEntry(ypos,address,code,status,gtype,gStatus)
+		myWindow.setCursorPos(1,ypos)
+		myWindow.setBackgroundColor(colors.black)
+		myWindow.setTextColor(gateStatusPalette[gStatus+2])
+		myWindow.write(string.sub(address.."------",1,6))
+		if gtype then
+			myWindow.setTextColor(colors.lime)
+		else
+			myWindow.setTextColor(colors.red)
 		end
+		myWindow.write(string.sub(code.."--",1,2))
+		if status == 1 then
+			myWindow.setTextColor(colors.black)
+			myWindow.setBackgroundColor(colors.lime)
+		elseif status == 2 then
+			myWindow.setTextColor(colors.white)
+			myWindow.setBackgroundColor(colors.red)
+		else
+			myWindow.setTextColor(colors.white)
+		end
+		myWindow.write("i")
+	end
+	myWindow.setVisible(false)
+	myWindow.setBackgroundColor(colors.black)
+	myWindow.setTextColor(colors.white)
+	myWindow.clear()
+	myWindow.setCursorPos(1,1)
+	myWindow.write("Slot List")
+
+	while ysize+programVars.slotListOffset-2 >= #data.wsListCondensed and not (programVars.slotListOffset <= 0) do
+		programVars.slotListOffset = programVars.slotListOffset - 1
+	end
+	if programVars.slotListOffset < 0 then
+		programVars.slotListOffset = 0
+	end
+	if programVars.slotListOffset ~= 0 then
+		myWindow.write("\x18")
 	else
-		if x < xsize-10 then -- main
-			if buttonPOS[y] then
-				if type(commandIndex[buttonPOS[y]]) == "number" then
-					sendCommand(commandIndex[buttonPOS[y]])
-				elseif commandIndex[buttonPOS[y]] then
-					commandIndex[buttonPOS[y]]()
+		myWindow.write("|")
+	end
+	for i=2,ysize do
+		local index = i+programVars.slotListOffset-1
+		local gate = data.wsListCondensed[index]
+		if gate then
+			local status = 0
+			if gate.open then
+				if gate.irisClose then
+					status = 2
+				else
+					status = 1
 				end
 			end
-		else -- side
-			if y == 1 then
-				if x > xsize-4 and x < xsize then
-					spawnExitDialog()
-				elseif x > xsize-7 and x < xsize-3 then
-					spawnWSInfoDialog(activeSlot)
+			local perms = false
+			for j=1,#data.perms.allowed do
+				if data.perms.allowed[j] == gate.slot then
+					perms = true
 				end
-			elseif y == 2 then
-				getAPI()
-			elseif y == 3 then
-				if x <= xsize-9 then
-					if pageNumber > 1 then
-						pageNumber = pageNumber - 1
-						drawMain()
-					end
-				elseif x >= xsize-2 then
-					if pageNumber < 9 then
-						pageNumber = pageNumber + 1
-						drawMain()
+			end
+			drawEntry(i,gate.addr,gate.group,status,perms,gate.gateStatus)
+		else
+			myWindow.setCursorPos(xsize,i)
+			myWindow.clearLine()
+		end
+		local drawArrow = data.wsListCondensed[index+1] and i == ysize
+		myWindow.setTextColor(colors.white)
+		myWindow.setBackgroundColor(colors.black)
+		if drawArrow then
+			myWindow.write("\x19")
+		else
+			myWindow.write("|")
+		end
+	end
+	if not (programVars.dialogState.enabled and programVars.dialogState.type == "info" and programVars.dialogState.source == "websocket") then
+		myWindow.setVisible(true)
+	end
+end
+
+local function drawDialog()
+	local xsize,ysize = term.getSize()
+	local dialog = windows.dialog
+	if programVars.dialogState.type ~= text or not programVars.dialogState.enabled then
+		dialog.setCursorBlink(false)
+	end
+	if programVars.dialogState.enabled then
+		if programVars.dialogState.type == "info" then
+			if programVars.dialogState.source == "gatelist" then
+				dialog.setBackgroundColor(colors.black)
+				dialog.clear()
+				dialog.setBackgroundColor(programVars.borderColor)
+				dialog.setCursorPos(1,6)
+				dialog.clearLine()
+				dialog.setBackgroundColor(colors.white)
+				dialog.setCursorPos(1,1)
+				dialog.clearLine()
+				dialog.setBackgroundColor(colors.red)
+				dialog.setTextColor(colors.white)
+				local windx,windy = dialog.getSize()
+				dialog.setCursorPos(windx-2,1)
+				dialog.write(" X ")
+				dialog.setCursorPos(1,1)
+				dialog.setBackgroundColor(colors.white)
+				dialog.setTextColor(colors.black)
+				dialog.write("Gate Info")
+				local gate
+				for i, sg in pairs(data.apiList) do
+					if sg.gate_address == programVars.dialogState.target then
+						gate = sg
 					end
 				end
-			elseif y == ysize - 2 then
-				query()
-			elseif y == ysize - 1 then
-				modeChange(false)
-				drawMain()
-			elseif y == ysize then
-				modeChange(true)
-				drawMain()
+				if not gate then 
+					programVars.dialogState.enabled = false
+					os.queueEvent("refresh")
+					return 
+				end
+				dialog.setCursorPos(1,2)
+				dialog.setBackgroundColor(colors.black)
+				dialog.setTextColor(colors.white)
+				dialog.write("Address: "..gate.gate_address)
+				if gate.is_headless then -- Note: implement in-session code when new data structure is released
+					dialog.setTextColor(colors.lime)
+				else
+					dialog.setTextColor(colors.red)
+				end
+				dialog.write(gate.gate_code)
+				dialog.setTextColor(colors.white)
+				dialog.setCursorPos(1,3)
+				dialog.write("Name: "..gate.session_name)
+				dialog.setCursorPos(1,4)
+				dialog.write("Host: "..gate.owner_name)
+				dialog.setCursorPos(1,5)
+				dialog.write("Users: "..gate.active_users.."/"..gate.max_users)
 			else
-				local correctedIndex = y-3
-				if slotListMode then
-					local wsIndex = wsPage[correctedIndex]
-					if wsIndex then
-						if (wsTbl[tostring(wsIndex)] or wsIndex <= maxSlot) and x < xsize-1 then
-							activeSlot = wsIndex
-							drawMain()
-						elseif x >= xsize-1 then
-							if wsTbl[tostring(wsIndex)] then
-								if wsTbl[tostring(wsIndex)].gateInfo then
-									spawnWSInfoDialog(wsIndex)
-								end
+				dialog.setBackgroundColor(colors.black)
+				dialog.clear()
+				dialog.setBackgroundColor(colors.white)
+				dialog.setCursorPos(1,1)
+				dialog.clearLine()
+				dialog.setBackgroundColor(colors.red)
+				dialog.setTextColor(colors.white)
+				local windx,windy = dialog.getSize()
+				dialog.setCursorPos(windx-2,1)
+				dialog.write(" X ")
+				dialog.setCursorPos(1,1)
+				dialog.setBackgroundColor(colors.white)
+				dialog.setTextColor(colors.black)
+				dialog.write("Slot Info")
+				local gate = data.wsList[programVars.dialogState.target]
+				if not gate then 
+					programVars.dialogState.enabled = false
+					os.queueEvent("refresh")
+					return 
+				end
+				dialog.setTextColor(colors.white)
+				dialog.setBackgroundColor(colors.black)
+				dialog.setCursorPos(1,2)
+				dialog.write("Slot Number: "..gate.slot)
+				dialog.setCursorPos(1,3)
+				dialog.write("Address: "..gate.addr)
+				local allowed = false
+				for i=1,#data.perms.allowed do
+					if data.perms.allowed[i] == gate.slot then
+						allowed = true
+					end
+				end
+				if allowed then
+					dialog.setTextColor(colors.lime)
+				else
+					dialog.setTextColor(colors.red)
+				end
+				dialog.write(gate.group)
+				dialog.setTextColor(colors.white)
+				dialog.setCursorPos(1,4)
+				dialog.write("World Name: "..gate.gateInfo.session_name)
+				dialog.setCursorPos(1,5)
+				dialog.write("Host: "..gate.gateInfo.host_name)
+				dialog.setCursorPos(1,6)
+				dialog.write("Users: "..gate.playerCount.."/"..gate.playerMax)
+				dialog.setCursorPos(1,7)
+				dialog.write("CS Enabled: ")
+				if gate.gateInfo.gate_cs_en then
+					dialog.setTextColor(colors.lime)
+					dialog.write("TRUE")
+				else
+					dialog.setTextColor(colors.red)
+					dialog.write("FALSE")
+				end
+				dialog.setTextColor(colors.white)
+				dialog.setCursorPos(1,8)
+				dialog.write("CS Name: "..gate.gateInfo.gate_name)
+				dialog.setCursorPos(1,9)
+				dialog.write("CS Visible: ")
+				if gate.gateInfo.gate_cs_vis then
+					dialog.setTextColor(colors.lime)
+					dialog.write("TRUE")
+				else
+					dialog.setTextColor(colors.red)
+					dialog.write("FALSE")
+				end
+				dialog.setTextColor(colors.white)
+				dialog.setCursorPos(1,10)
+				dialog.write("Access Level: "..gate.gateInfo.access_level)
+				dialog.setCursorPos(1,11)
+				dialog.write("Websocket User: "..gate.gateInfo.user_name)
+				dialog.setCursorPos(1,12)
+				dialog.write("Gate Version: "..gate.gateInfo.gate_version)
+				dialog.setCursorPos(1,13)
+				dialog.write("UDHD Version: "..gate.gateInfo.dhd_version)
+				if gate.sec and gate.min then
+					local secStr = tostring(gate.sec)
+					if #secStr == 1 then
+						secStr = "0"..secStr
+					end
+					local minStr = tostring(gate.min)
+					if #minStr == 1 then
+						minStr = "0"..minStr
+					end
+					local tmrStr = gate.timerText or "Timer: "
+					dialog.setCursorPos(1,14)
+					dialog.write(tmrStr..minStr..":"..secStr)
+				end
+			end
+		elseif programVars.dialogState.type == "text" then
+			dialog.setBackgroundColor(colors.black)
+			dialog.clear()
+			dialog.setBackgroundColor(programVars.borderColor)
+			dialog.setCursorPos(1,1)
+			dialog.clearLine()
+			dialog.setBackgroundColor(colors.white)
+			dialog.setCursorPos(1,2)
+			dialog.clearLine()
+			dialog.setBackgroundColor(colors.red)
+			dialog.setTextColor(colors.white)
+			local windx,windy = dialog.getSize()
+			dialog.setCursorPos(windx-2,2)
+			dialog.write(" X ")
+			dialog.setCursorPos(1,2)
+			dialog.setBackgroundColor(colors.white)
+			dialog.setTextColor(colors.black)
+			local gate = data.wsList[programVars.activeSlot+1]
+			local allowed = false
+			if not gate and programVars.dialogState.target ~= "address" then
+				programVars.dialogState.enabled = false
+				os.queueEvent("refresh")
+				return
+			elseif gate then
+				for i,slot in pairs(data.perms.allowed) do
+					if slot == gate.slot then
+						allowed = true
+					end
+				end
+			end
+			if programVars.dialogState.target == "address" then
+				dialog.write("Address Input")
+				dialog.setCursorPos(1,3)
+				dialog.setBackgroundColor(colors.black)
+				dialog.setTextColor(colors.white)
+				dialog.write("Enter New Target Address")
+			elseif programVars.dialogState.target == "idc" then
+				if not (gate.irisPresent and gate.idcPresent and allowed) then
+					programVars.dialogState.enabled = false
+					os.queueEvent("refresh")
+					return
+				end
+				dialog.write("IDC Input - "..string.sub(gate.addr.."------",1,6))
+				dialog.setBackgroundColor(colors.lightBlue)
+				dialog.write(string.sub(gate.group.."--",1,2))
+				dialog.setCursorPos(1,3)
+				dialog.setBackgroundColor(colors.black)
+				dialog.setTextColor(colors.white)
+				dialog.write("Enter New IDC Code")
+			else
+				if gate.controlState ~= 2 or not allowed then
+					programVars.dialogState.enabled = false
+					os.queueEvent("refresh")
+					return
+				end
+				local addr = string.sub(gate.dialedAddr,1,6)
+				local group = string.sub(gate.dialedAddr,7,8)
+				dialog.write("GDO Input - "..string.sub(addr.."------",1,6))
+				dialog.setBackgroundColor(colors.lightBlue)
+				dialog.write(string.sub(group.."--",1,2))
+				dialog.setCursorPos(1,3)
+				dialog.setBackgroundColor(colors.black)
+				dialog.setTextColor(colors.white)
+				dialog.write("Enter IDC Code to send")
+			end
+			dialog.setCursorPos(3,5)
+			dialog.write("Confirm")
+			dialog.setCursorPos(windx-7,5)
+			dialog.write("Cancel")
+			dialog.setCursorPos(1,4)
+			if programVars.dialogState.target == "address" then
+				local fullCont = string.sub(programVars.dialogState.content.."--------",1,8)
+				dialog.write(string.sub(fullCont,1,6))
+				dialog.setTextColor(colors.lightBlue)
+				dialog.write(string.sub(fullCont,7,8))
+				local cursorPos = #programVars.dialogState.content+1
+				dialog.setCursorPos(cursorPos,4)
+				dialog.setCursorBlink(cursorPos < 9)
+				if cursorPos < 7 then
+					dialog.setTextColor(colors.white)
+				end
+			else
+				if #programVars.dialogState.content >= windx then
+					dialog.write("\171")
+					dialog.write(string.sub(programVars.dialogState.content,-(windx-2)))
+				else
+					dialog.write(programVars.dialogState.content)
+				end
+				dialog.setCursorBlink(true)
+			end
+		else --Exit Dialog
+			dialog.setBackgroundColor(colors.black)
+			dialog.clear()
+			dialog.setBackgroundColor(programVars.borderColor)
+			dialog.setCursorPos(1,4)
+			dialog.clearLine()
+			dialog.setBackgroundColor(colors.white)
+			dialog.setCursorPos(1,1)
+			dialog.clearLine()
+			dialog.setBackgroundColor(colors.red)
+			dialog.setTextColor(colors.white)
+			local windx,windy = dialog.getSize()
+			dialog.setCursorPos(windx-2,1)
+			dialog.write(" X ")
+			dialog.setCursorPos(1,1)
+			dialog.setBackgroundColor(colors.white)
+			dialog.setTextColor(colors.black)
+			dialog.write("Confirm Action")
+			dialog.setCursorPos(1,2)
+			dialog.setBackgroundColor(colors.black)
+			dialog.setTextColor(colors.white)
+			dialog.write("Exit Program?")
+			dialog.setCursorPos(3,3)
+			dialog.write("Confirm")
+			dialog.setCursorPos(windx-7,3)
+			dialog.write("Cancel")
+		end
+		dialog.setVisible(true)
+	end
+end
+
+local function defineWindows()
+	local xsize,ysize = term.getSize()
+	for i=1,#colorPalette.colors do
+		term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
+	end
+	--Header Bar
+	windows.topWindow = window.create(baseTerm,1,1,xsize,1,false)
+
+	--Footer bar
+	windows.botWindow = window.create(baseTerm,1,ysize,xsize,1,false)
+
+	-- Vertical Borders
+	local vertBorderY1 = 2
+	local vertBorderYh = ysize-2
+	windows.vertBorder1 = window.create(baseTerm,1,vertBorderY1,1,vertBorderYh,false)
+	windows.vertBorder2 = window.create(baseTerm,12,vertBorderY1,1,vertBorderYh,false)
+	windows.vertBorder3 = window.create(baseTerm,xsize-11,vertBorderY1,1,vertBorderYh,false)
+	windows.vertBorder4 = window.create(baseTerm,xsize,vertBorderY1,1,vertBorderYh,false)
+
+	--Dialog Window (most versatile)
+	windows.dialog = window.create(baseTerm,1,1,1,1,false) -- basic init - will be configured later by setupWindows()
+	--GateList Window
+	windows.gateList = window.create(baseTerm,2,2,10,ysize-2,false)
+	drawGateList()
+
+	--SlotList Window
+	windows.slotList = window.create(baseTerm,xsize-10,2,10,ysize-2,false)
+	drawSlotList()
+
+	--Main Window
+	windows.main = window.create(baseTerm,13,2,xsize-24,ysize-2,false)
+	drawMain()
+end
+
+local function wsHandler(event)
+	if event[3] == "INPUT USER" then
+		programVars.ws.send(config.accessKey)
+	else
+		local packet = textutils.unserializeJSON(event[3])
+		if packet.type == "perms" then
+			data.perms = packet
+			for i, slot in pairs(data.wsList) do
+				local found = false
+				for j=1,#packet.online do
+					if packet.online[j] == i-1 then
+						found = true
+					end
+				end
+				if not found then
+					data.wsList[i] = nil
+				end
+			end
+		elseif packet.type == "stargate" then
+			if packet.gateStatus == -1 then
+				local slotNo = packet.slot
+				data.wsList[slotNo+1] = nil
+			else
+				local slotNo = packet.slot
+				data.wsList[slotNo+1] = packet
+			end
+		end
+		data.wsListCondensed = {}
+		for i, slot in pairs(data.wsList) do
+			table.insert(data.wsListCondensed,slot)
+		end
+	end
+end
+
+
+local function sendCommand(command,parameter)
+	if parameter then
+		command = command..parameter
+	end
+	local slotStr = tostring(programVars.activeSlot)
+	if #slotStr == 1 then
+		slotStr = "0"..slotStr
+	end
+	programVars.ws.send(slotStr..command)
+end
+
+
+local function keyHandler(event)
+	local validGlyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@*"
+	if not (programVars.dialogState.enabled and programVars.dialogState.type == "text") then
+		return
+	end
+	if event[1] == "char" then
+		if programVars.dialogState.target == "address" then
+			if #programVars.dialogState.content >= 8 then 
+				return 
+			end
+			local raw = string.upper(event[2])
+			local currText = programVars.dialogState.content
+			if string.find(currText,raw,1,true) or not string.find(validGlyphs,raw,1,true) then
+				return
+			end
+			programVars.dialogState.content = programVars.dialogState.content..raw
+		else
+			programVars.dialogState.content = programVars.dialogState.content..event[2]
+		end
+	else --key
+		if event[2] == keys.enter then
+			--confirm dialog
+			if programVars.dialogState.target == "address" then
+				programVars.targetAddress = programVars.dialogState.content
+			elseif programVars.dialogState.target == "idc" then
+				sendCommand(7,programVars.dialogState.content)
+			elseif programVars.dialogState.target == "gdo" then
+				sendCommand(8,programVars.dialogState.content)
+			end
+			programVars.dialogState.enabled = false
+		elseif event[2] == keys.backspace then
+			--backspace
+			if #programVars.dialogState.content > 0 then
+				programVars.dialogState.content = string.sub(programVars.dialogState.content,1,-2)
+			end
+		end
+	end
+end
+
+local function mouseHandler(event)
+	local function spawnAddressDialog()
+		programVars.dialogState.enabled = true
+		programVars.dialogState.type = "text"
+		programVars.dialogState.target = "address"
+		programVars.dialogState.content = programVars.targetAddress
+		programVars.dialogState.cursorPos = #programVars.dialogState.content+1
+	end
+	local function dialNormal()
+		sendCommand(1,programVars.targetAddress)
+	end
+	local function dialInstant()
+		sendCommand(2,programVars.targetAddress)
+	end
+	local function spawnIDCDialog()
+		programVars.dialogState.enabled = true
+		programVars.dialogState.type = "text"
+		programVars.dialogState.target = "idc"
+		local gate = data.wsList[programVars.activeSlot+1]
+		programVars.dialogState.content = gate.idcCODE
+		programVars.dialogState.cursorPos = #programVars.dialogState.content+1
+	end
+	local function spawnGDODialog()
+		programVars.dialogState.enabled = true
+		programVars.dialogState.type = "text"
+		programVars.dialogState.target = "gdo"
+		programVars.dialogState.content = ""
+		programVars.dialogState.cursorPos = 1
+	end
+	local eventList = {
+		dial_address = spawnAddressDialog,
+		dial_normal = dialNormal,
+		dial_instant = dialInstant,
+		cancel = 3,
+		close = 4,
+		iris_toggle = 5,
+		idc_toggle = 6,
+		idc_code = spawnIDCDialog,
+		gdo = spawnGDODialog
+	}
+	local mx,my = event[3],event[4]
+	local wind
+	local windName = ""
+	local function checkBounds(wind,mx,my)
+		local x1,y1 = wind.getPosition()
+		local x2,y2 = wind.getSize()
+		x2,y2 = x2+x1-1,y2+y1-1
+		return (mx >= x1 and mx <= x2 and my >= y1 and my <= y2 and wind.isVisible())
+	end
+	local function adjustBounds(wind,mx,my)
+		local x1,y1 = wind.getPosition()
+		return mx-x1+1,my-y1+1
+	end
+	if checkBounds(windows.main,mx,my) then -- Main Window
+		wind = windows.main
+		windName = "main"
+	elseif checkBounds(windows.gateList,mx,my) then
+		wind = windows.gateList
+		windName = "gateList"
+	elseif checkBounds(windows.slotList,mx,my) then
+		wind = windows.slotList
+		windName = "slotList"
+	elseif checkBounds(windows.topWindow,mx,my) then
+		wind = windows.topWindow
+		windName = "top"
+	elseif checkBounds(windows.dialog,mx,my) then
+		wind = windows.dialog
+		windName = "dialog"
+	end
+	if wind then
+		mx,my = adjustBounds(wind,mx,my)
+		if event[1] == "mouse_scroll" then
+			if windName == "slotList" then
+				programVars.slotListOffset = programVars.slotListOffset + event[2]
+			elseif windName == "gateList" then
+				programVars.gateListOffset = programVars.gateListOffset + event[2]
+			end
+		elseif event[1] == "mouse_up" and lastMouseEvent[1] == "mouse_click" then
+			local windx,windy = wind.getSize()
+			if windName == "slotList" then
+				 if mx == windx then --Arrow Buttons
+					if my == 1 then
+						programVars.slotListOffset = programVars.slotListOffset - 1
+					elseif my == windy then
+						programVars.slotListOffset = programVars.slotListOffset + 1
+					end
+				elseif my ~= 1 then
+					local gate = data.wsListCondensed[my+programVars.slotListOffset-1]
+					if gate then
+						if mx >= windx-1 then
+							programVars.dialogState.enabled = true
+							programVars.dialogState.type = "info"
+							programVars.dialogState.source = "websocket"
+							programVars.dialogState.target = (gate.slot or 0) + 1
+						else
+							programVars.activeSlot = gate.slot or 0
+						end
+					end
+				else
+					programVars.ws.send("-QUERY")
+				end
+			elseif windName == "gateList" then
+				if mx == windx then --Arrow Buttons
+					if my == 1 then
+						programVars.gateListOffset = programVars.gateListOffset - 1
+					elseif my == windy then
+						programVars.gateListOffset = programVars.gateListOffset + 1
+					end
+				elseif my ~= 1 then
+					local gate = data.apiList[my+programVars.gateListOffset-1]
+					if gate then
+						if mx == windx-1 then
+							programVars.dialogState.enabled = true
+							programVars.dialogState.type = "info"
+							programVars.dialogState.source = "gatelist"
+							programVars.dialogState.target = gate.gate_address
+						else
+							programVars.targetAddress = gate.gate_address..gate.gate_code
+							if programVars.dialogState.enabled and programVars.dialogState.type == "text" and programVars.dialogState.target == "address" then
+								programVars.dialogState.content = gate.gate_address..gate.gate_code
 							end
 						end
 					end
 				else
-					if apiList[apiPage[correctedIndex]] then
-					 	if wsTbl[tostring(activeSlot)] and x < xsize-1 then
-							if wsTbl[tostring(activeSlot)].gateStatus >= 0 then
-								addr = apiList[apiPage[correctedIndex]].gate_address
-								if wsTbl[tostring(activeSlot)].group ~= apiList[apiPage[correctedIndex]].gate_code then
-									addr = addr..string.sub(apiList[apiPage[correctedIndex]].gate_code,1,1)
-								end
-								targetAddress = addr
-								drawMain()
+					fetchAPI()
+				end
+			elseif windName == "top" then
+				if mx > windx-3 then
+					--EXIT
+					if programVars.dialogState.enabled and programVars.dialogState.type == "exit" then
+						programVars.isRunning = false
+						programVars.exitMessage = "Program Closed by User"
+					else
+						programVars.dialogState.enabled = true
+						programVars.dialogState.type = "exit"
+					end
+				elseif mx > windx-6 then
+					local index = programVars.activeSlot+1
+					if data.wsList[index] then
+						programVars.dialogState.enabled = true
+						programVars.dialogState.type = "info"
+						programVars.dialogState.source = "websocket"
+						programVars.dialogState.target = index
+					end
+				end
+			elseif windName == "dialog" then
+				if programVars.dialogState.type == "text" then
+					my = my - 1
+				end
+				windy = windy-1
+				if mx > windx-3 and my == 1 then
+					programVars.dialogState.enabled = false
+				end
+				if programVars.dialogState.type ~= "info" and my == windy then
+					-- bottom buttons
+					if mx >= 3 and mx <= 9 then
+						-- confirm action
+						if programVars.dialogState.type == "exit" then
+							programVars.isRunning = false
+							programVars.exitMessage = "Program Closed by User"
+						else
+							--text dialog
+							if programVars.dialogState.target == "address" then
+								programVars.targetAddress = programVars.dialogState.content
+							elseif programVars.dialogState.target == "idc" then
+								sendCommand(7,programVars.dialogState.content)
+							elseif programVars.dialogState.target == "gdo" then
+								sendCommand(8,programVars.dialogState.content)
 							end
-						elseif x >= xsize-1 then
-							spawnInfoDialog(apiList[apiPage[correctedIndex]].gate_address)
+						end
+						programVars.dialogState.enabled = false
+					elseif mx >= windx-7 and mx <= windx-2 then
+						--cancel action
+						programVars.dialogState.enabled = false
+					end
+				end
+			elseif windName == "main" then
+				local line = programVars.mainMouseMapping[my]
+				if line then
+					if mx >= line.bound1 and mx <= line.bound2 then
+						if type(eventList[line.event]) == "function" then
+							eventList[line.event]()
+						else
+							sendCommand(eventList[line.event])
 						end
 					end
 				end
 			end
+		elseif event[1] == "mouse_drag" then
+			local amnt = lastMouseEvent[4] - event[4]
+			if windName == "slotList" then
+				programVars.slotListOffset = programVars.slotListOffset + amnt
+			elseif windName == "gateList" then
+				programVars.gateListOffset = programVars.gateListOffset + amnt
+			else
+				if lastMouseEvent[1] == "mouse_click" then
+					event[1] = "mouse_scroll" -- hacky way of ignoring the drag event
+				end
+			end
 		end
 	end
-	table.remove(callChain,#callChain)
+	if event[1] ~= "mouse_scroll" then
+		lastMouseEvent = event
+	end
 end
 
-local function keyHandler(key) --handle keys not handled in charHandler
-	table.insert(callChain,{"keyHandler",key})
-	if key == keys.tab then
-		saveDump()
-		writeDebugDialog("saved variable dumps")
-	end
-	if dialogState.type ~= "txt" then 
-		table.remove(callChain,#callChain)
-		return 
-	end
-	if not dialogState.active then 
-		table.remove(callChain,#callChain)
-		return 
-	end
-	if key == keys.enter then
-		textDialogConfirmHandler()
-	elseif key == keys.backspace then
-		if #dialogState.text > 0 then
-			dialogState.text = string.sub(dialogState.text,1,-2)
-		end
-	end
-	drawMain()
-	table.remove(callChain,#callChain)
-end
 
-local validGlyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@*"
-local function charHandler(key) --Handle text input
-	table.insert(callChain,{"charHandler",key})
-	if dialogState.type ~= "txt" then 
-		table.remove(callChain,#callChain)
-		return 
-	end
-	if not dialogState.active then 
-		table.remove(callChain,#callChain)
-		return 
-	end
-	if dialogState.id == 1 then
-		raw = string.upper(key)
-		if #dialogState.text >= 8 then 
-			table.remove(callChain,#callChain)
-			return 
+local function apiHandler(event)
+	data.apiList = {}
+	if event[1] == "http_success" then
+		local success, err = textutils.unserializeJSON(event[3].readAll())
+		if success then
+			data.apiList = success
+		else
+			--print debug emssage
 		end
-		if raw == "%" or raw == "." or raw == "[" or raw == "(" then 
-			table.remove(callChain,#callChain)
-			return 
-		end
-		if string.find(dialogState.text,raw) or not string.find(validGlyphs,raw) then 
-			table.remove(callChain,#callChain)
-			return 
-		end
-		dialogState.text = dialogState.text..raw
 	else
-		dialogState.text = dialogState.text..key
+		--print debug message
 	end
-	drawMain()
-	table.remove(callChain,#callChain)
 end
+
 
 local function main()
-	table.insert(callChain,{"main"})
-	while isRunning do
-		local event = {os.pullEventRaw()}
-		if event[1] == "terminate" or (event[1] == "websocket_closed" and event[2]==wsURL) then
-			isRunning = false
-			if event[1]=="terminate" then
-				exitMessage = "Terminated"
-			else
-				exitMessage = "Connection Closed"
-			end
-		elseif event[1] == "websocket_message" then
-			timeoutTimer = os.startTimer(40)
-			parseWS(event[3])
-		elseif event[1] == "timer" then
-			if event[2] == tmr then
-				if not slotListMode then
-					getAPI()
-				end
-				tmr = os.startTimer(30)
-			-- elseif event[2] == clearDialog and (dialogState.type == "alert" or dialogState.type=="weakalert") then
-			-- 	dialogState.active = false
-			elseif event[2] == debugDialogState.timer then
-				debugDialogState.visible = false
-				drawMain()
-			elseif event[2] == timeoutTimer then
-				exitMessage = "Connection Timed Out"
-				isRunning = false
-			end
-		elseif event[1] == "term_resize" then
-			xsize,ysize = term.getSize()
-			dialogState.active = false
-			for i=1,#colorPalette.colors do
-				term.setPaletteColor(colorPalette.colors[i],colorPalette.codes[i])
-			end
-			writeDebugDialog("term resize detected")
-			drawMain()
-		elseif event[1] == "http_success" and event[2] == sgURL then
-			parseAPI(event[3].readAll())
-			writeDebugDialog("api fetch success.")
-		elseif event[1] == "http_failure" and event[2] == sgURL then
-			writeDebugDialog("api fetch failure.")
-			-- ws.send("-API")
-		elseif event[1] == "mouse_click" then
-			mouseHandler(event[3],event[4])
-		elseif event[1] == "key" then
-			keyHandler(event[2])
-		elseif event[1] == "char" then
-			charHandler(event[2])
-		elseif event[1] == "REDRAWSCREEN" then
-			drawMain()
+	init()
+	if programVars.isRunning then
+		print("Connecting...")
+		local ws,err = http.websocket(config.wsURL)
+		programVars.ws = ws
+		if programVars.ws then
+			programVars.isRunning = true
+			programVars.apiTimer = os.startTimer(30)
+			programVars.timeoutTimer = os.startTimer(40)
+			fetchAPI()
+			defineWindows()
+		else
+			programVars.exitMessage = err
+			programVars.isRunning = false
 		end
 	end
-	table.remove(callChain,#callChain)
+	while programVars.isRunning do
+		setupWindows()
+		drawMain()
+		drawGateList()
+		drawSlotList()
+		drawDialog()
+		local event = {os.pullEventRaw()}
+		if event[1] == "websocket_message" then
+			os.cancelTimer(programVars.timeoutTimer)
+			programVars.timeoutTimer = os.startTimer(40)
+			wsHandler(event)
+		elseif event[1] == "mouse_click" then
+			mouseHandler(event)
+		elseif event[1] == "mouse_drag" then
+			mouseHandler(event)
+		elseif event[1] == "mouse_up" then
+			mouseHandler(event)
+		elseif event[1] == "mouse_scroll" then
+			mouseHandler(event)
+		elseif event[1] == "char" then
+			keyHandler(event)
+		elseif event[1] == "key" then
+			keyHandler(event)
+		elseif event[1] == "websocket_closed" then
+			--connection closed
+			programVars.isRunning = false
+			programVars.exitMessage = "Connection Closed"
+		elseif event[1] == "terminate" then
+			programVars.isRunning = false
+			programVars.exitMessage = "Terminated"
+		elseif event[1] == "timer" then
+			if event[2] == programVars.timeoutTimer then
+				programVars.isRunning = false
+				programVars.exitMessage = "Connection Timed Out"
+			elseif event[2] == programVars.apiTimer then
+				fetchAPI()
+				programVars.apiTimer = os.startTimer(30)
+			end
+		elseif event[1] == "http_success" then
+			apiHandler(event)
+		elseif event[1] == "http_failure" then
+			apiHandler(event)
+		elseif event[1] == "term_resize" then
+			defineWindows()
+		end
+	end
 end
 
-local success,msg = pcall(main)
-pcall(ws.close)
+local success, err = pcall(main)
 
 for i=1,#colorPalette.colors do
 	term.setPaletteColor(colorPalette.colors[i],term.nativePaletteColor(colorPalette.colors[i]))
 end
-term.setBackgroundColor(colors.black)
-term.setTextColor(colors.white)
-term.clear()
-term.setCursorPos(1,1)
-if not success then
-	printError("An Error has Occurred!")
-	exitMessage = msg
+
+if programVars.ws then
+	pcall(programVars.ws.close)
 end
-printError(exitMessage)
 if not success then
-	local dumped, msg = pcall(saveDump)
-	if dumped then
-		print("Dump Saved to \"/client.dump\"")
-		print("Please DM this file to catiotocat on Discord if possible.")
-		printError("WARNING: DO NOT SHARE THIS FILE WITH ANYONE ELSE")
-		print("If you are running this in CraftOS-PC on Windows, the file can be found in the directory below:")
-		print("%appdata%/CraftOS-PC/computer/"..os.getComputerID())
-	else
-		printError("Variable Dump Failed")
-		print("Please DM the error message printed above to catiotocat on Discord")
-	end
+	programVars.exitMessage = err
+	programVars.noResetTerminal = false
+end
+if not programVars.noResetTerminal then
+	term.setBackgroundColor(colors.black)
+	term.setTextColor(colors.white)
+	term.setCursorPos(1,1)
+	term.clear()
+	printError(programVars.exitMessage)
 end
