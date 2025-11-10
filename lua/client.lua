@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "1.2.0"
+local programVersion = "1.3.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -14,7 +14,7 @@ if not shell then --If the shell api isn't present, return the program version f
 end
 
 settings.define("udhdRemoteAccess.accessKey",{
-	description="Access Key for the webocket server", 
+	description="Access Key(s) for the webocket server. Use \";\" to seperate keys.", 
 	default = "public", 
 	type="string"
 })
@@ -180,6 +180,13 @@ end
 
 activeSlot = 0
 local accessKey = argKey or settings.get("udhdRemoteAccess.accessKey")
+
+local keys = {}
+for key in string.gmatch(accessKey, "[^;]+") do
+	table.insert(keys,textutils.urlEncode(key))
+end
+
+accessKey = textutils.serialiseJSON(keys)
 
 isRunning = true
 xsize,ysize = term.getSize()
