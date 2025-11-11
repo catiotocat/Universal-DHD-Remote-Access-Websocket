@@ -181,7 +181,6 @@ async def broadcastPerms():
 		for gate in connectedStargates:
 			connectedSlots.append(gate["Slot"])
 		raw = {
-			"defined":[],
 			"allowed":allowedSlots,
 			"online":connectedSlots,
 			"type":"perms"
@@ -297,13 +296,12 @@ async def handleClient(websocket,initialMessage):
 					msg = await websocket.recv()
 				await websocket.send('{"type":"keepalive"}')
 				if msg == "-SLOTS":
-					print("Perm Request from "+key)
+					print("Perm Request from "+keyStr)
 					allowedSlots = await getPerms(identity["KeyList"])
 					connectedSlots = []
 					for gate in connectedStargates:
 						connectedSlots.append(gate["Slot"])
 					raw = {
-						"defined":[],
 						"allowed":allowedSlots,
 						"online":connectedSlots,
 						"type":"perms"
