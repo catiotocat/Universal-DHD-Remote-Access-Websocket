@@ -341,8 +341,10 @@ async def handler(websocket):
 		await serveUpdate(websocket,True)
 	elif user.startswith("{") and user.endswith("}"): #Stargate
 		await handleStargate(websocket,user)
-	else:
+	elif user.startswith("[" and user.endswith("]")): #Client
 		await handleClient(websocket,user)
+	else:
+		websocket.close()
 
 
 async def main():
