@@ -5,7 +5,7 @@ if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
 	print("Press enter to continue...")
-	io.read()
+	local a = io.read()
 	return
 end
 
@@ -24,7 +24,7 @@ end
 --The following few lines of code transfer the config to the new setting variables
 local configStrings = {"accessKey","websocketUrl","allowUpdates"}
 for i=1,#configStrings do
-	item = configStrings[i]
+	local item = configStrings[i]
 	settings.undefine("resoniteLink."..item)
 	local value = settings.get("resoniteLink."..item)
 	if value then

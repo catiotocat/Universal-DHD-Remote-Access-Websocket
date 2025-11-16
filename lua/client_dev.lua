@@ -1,12 +1,12 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.1.0"
+local programVersion = "2.1.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
 	print("Press enter to continue...")
-	io.read()
+	local a = io.read()
 	return
 end
 if not shell then --If the shell api isn't present, return the program version for update check.
@@ -45,8 +45,7 @@ local data = {
 	wsListCondensed = {},
 	perms = {
 		allowed = {},
-		online = {},
-		defined = {}
+		online = {}
 	}
 } 
 local programVars = {
@@ -68,7 +67,12 @@ local programVars = {
 		textContent = "",
 		cursorPos = 1
 	},
-	borderColor = colors.lightGray
+	borderColor = colors.lightGray,
+	debugMessage = {
+		active = false,
+		message = "",
+		timer = 0
+	}
 }
 local lastMouseEvent = {
 	"mouse_up",
@@ -92,7 +96,7 @@ local config =  {
 local argStates = {
 	update = false,
 	noUpdate = false,
-	-- debug = false,
+	debug = false,
 	version = false,
 	help = false
 }
@@ -125,8 +129,8 @@ local function init()
 			argStates.noupdate = true
 			argStates.update = false
 			config.allowUpdates = false
-		-- elseif arg == "-D" then
-		--     argState.debug = true
+		elseif arg == "-D" then
+		    argStates.debug = true
 		elseif arg == "-H" then
 			argStates.help = true
 		end
@@ -145,7 +149,7 @@ local function init()
 		print("-U - updates the program then exits")
 		print("-W <ws url> - sets the websocket url to use.")
 		print("-N - disables the automatic update check")
-		-- print("-D - enable debugging messages")
+		print("-D - enable debugging messages")
 		print("-H - show this information and exit")
 		print("-V - print the program version and exit.")
 		programVars.isRunning = false
@@ -229,6 +233,15 @@ local function init()
 
 end
 
+local function debugWrite(message)
+	if programVars.debugMessage.active then
+		os.cancelTimer(programVars.debugMessage.timer)
+	end
+	programVars.debugMessage.active = true
+	programVars.debugMessage.message = message
+	programVars.debugMessage.timer = os.startTimer(5)
+end
+
 local function fetchAPI()
 	http.request(config.apiURL)
 end
@@ -254,6 +267,11 @@ local function setBorderColor(color,gate)
 
 	windows.botWindow.setBackgroundColor(color)
 	windows.botWindow.clear()
+	windows.botWindow.setCursorPos(1,1)
+	windows.botWindow.setTextColor(colors.black)
+	if argStates.debug and programVars.debugMessage.active then
+		windows.botWindow.write(programVars.debugMessage.message)
+	end
 	windows.botWindow.setVisible(true)
 
 	for i=1,4 do
@@ -685,7 +703,7 @@ end
 local function drawDialog()
 	local xsize,ysize = term.getSize()
 	local dialog = windows.dialog
-	if programVars.dialogState.type ~= text or not programVars.dialogState.enabled then
+	if programVars.dialogState.type ~= "text" or not programVars.dialogState.enabled then
 		dialog.setCursorBlink(false)
 	end
 	if programVars.dialogState.enabled then
@@ -1024,6 +1042,7 @@ local function sendCommand(command,parameter)
 	if #slotStr == 1 then
 		slotStr = "0"..slotStr
 	end
+	debugWrite("Sent: "..slotStr..command)
 	programVars.ws.send(slotStr..command)
 end
 
@@ -1343,6 +1362,8 @@ local function main()
 			elseif event[2] == programVars.apiTimer then
 				fetchAPI()
 				programVars.apiTimer = os.startTimer(30)
+			elseif event[2] == programVars.debugMessage.timer then
+				programVars.debugMessage.active = false
 			end
 		elseif event[1] == "http_success" then
 			apiHandler(event)

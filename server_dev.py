@@ -4,6 +4,7 @@ import asyncio
 import os
 import json
 from urllib import parse
+from datetime import datetime
 from websockets.asyncio.server import serve
 
 publicAccessKey = "public"
@@ -87,7 +88,7 @@ except Exception as ex:
 
 async def sendGateInfo(message,gate):
 	if restrictDataAccess:
-		print("Fetching perms for data access! Slot "+str(gate["Slot"]))
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Fetching perms for data access! Slot "+str(gate["Slot"]))
 	for client in connectedClients:
 		msg = message
 		try:
@@ -170,11 +171,11 @@ async def getPerms(keys):
 					allow = True
 			if allow:
 				allowedSlots.append(s["Slot"])
-	print("\033[96mgetPerms: "+generateKeyString(keys)+" Perms: "+json.dumps(allowedSlots)+"\033[0m")
+	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | \033[96mgetPerms: "+generateKeyString(keys)+" Perms: "+json.dumps(allowedSlots)+"\033[0m")
 	return allowedSlots
 
 async def broadcastPerms():
-	print("Fetching perms for broadcast!")
+	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Fetching perms for broadcast!")
 	for client in connectedClients:
 		allowedSlots = await getPerms(client["KeyList"])
 		connectedSlots = []
@@ -216,9 +217,9 @@ async def handleStargate(websocket,initialMessage):
 					slot = i
 					# print("Slot Set")
 		item = slot
-		print("Stargate Connected")
-		print("Key: "+x["ws-key"])
-		print("Slot: "+str(item))
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Stargate Connected")
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Key: "+x["ws-key"])
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Slot: "+str(item))
 		if item != -1:
 			identity = {"Websocket":websocket,"Key":x["ws-key"],"Slot":item}
 			connectedStargates.append(identity)
@@ -244,15 +245,15 @@ async def handleStargate(websocket,initialMessage):
 						await websocket.send("CLOSING DUE TO INACTIVITY")
 					except:
 						pass
-					print("Stargate timed out!")
-					print("Slot: "+str(item))
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Stargate timed out!")
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Slot: "+str(item))
 					break
 				except Exception as ex:
-					print("\033[91mException in stargate handler loop\033[0m")
-					print("Stargate Slot "+str(item))
-					print(type[ex])
-					print(ex.args)
-					print(ex)
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","\033[91mException in stargate handler loop\033[0m")
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Stargate Slot "+str(item))
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",type[ex])
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",ex.args)
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",ex)
 					break
 			connectedStargates.remove(identity)
 			await broadcastPerms()
@@ -261,10 +262,10 @@ async def handleStargate(websocket,initialMessage):
 		else:
 			await websocket.close()
 	except Exception as ex:
-		print("\033[91mException in stargate handler\033[0m")
-		print(type[ex])
-		print(ex.args)
-		print(ex)
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","\033[91mException in stargate handler\033[0m")
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",type[ex])
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",ex.args)
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",ex)
 		await websocket.close()
 
 async def handleClient(websocket,initialMessage):
@@ -285,7 +286,7 @@ async def handleClient(websocket,initialMessage):
 			"KeyList":[initialMessage]
 		}
 	keyStr = generateKeyString(identity["KeyList"])
-	print("Client Connected: "+keyStr)
+	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Client Connected: "+keyStr)
 	connectedClients.append(identity) #add the client to the list
 	await broadcastPerms()
 	await query() #this tells the headless instances to report all stargate data
@@ -296,7 +297,7 @@ async def handleClient(websocket,initialMessage):
 					msg = await websocket.recv()
 				await websocket.send('{"type":"keepalive"}')
 				if msg == "-SLOTS":
-					print("Perm Request from "+keyStr)
+					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Perm Request from "+keyStr)
 					allowedSlots = await getPerms(identity["KeyList"])
 					connectedSlots = []
 					for gate in connectedStargates:
@@ -319,10 +320,10 @@ async def handleClient(websocket,initialMessage):
 									msg = msg[2:]
 									await gate["Websocket"].send(msg)
 					except Exception as ex:
-						print("Exception in command send function!")
-						print(type[ex])
-						print(ex.args)
-						print(ex)
+						print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Exception in command send function!")
+						print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",type[ex])
+						print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",ex.args)
+						print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ",ex)
 			except TimeoutError:
 				await websocket.send('{"type":"keepalive"}')
 		except:
@@ -341,7 +342,7 @@ async def handler(websocket):
 		await serveUpdate(websocket,True)
 	elif user.startswith("{") and user.endswith("}"): #Stargate
 		await handleStargate(websocket,user)
-	elif user.startswith("[" and user.endswith("]")): #Client
+	elif user.startswith("[") and user.endswith("]"): #Client
 		await handleClient(websocket,user)
 	else:
 		websocket.close()
@@ -351,7 +352,7 @@ async def main():
 	loop = asyncio.get_running_loop()
 	stop = loop.create_future()
 	port = int(os.environ.get("PORT","8059"))
-	print("Starting server on port "+str(port))
+	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Starting server on port "+str(port))
 	async with serve(handler,"",port):
 		await stop
 

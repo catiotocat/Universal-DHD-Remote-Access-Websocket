@@ -1,12 +1,12 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.1.0"
+local programVersion = "2.1.1"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
 	print("You can download CraftOS-PC from https://www.craftos-pc.cc/")
 	print("Press enter to continue...")
-	io.read()
+	local a = io.read()
 	return
 end
 if not shell then --If the shell api isn't present, return the program version for update check.
@@ -685,7 +685,7 @@ end
 local function drawDialog()
 	local xsize,ysize = term.getSize()
 	local dialog = windows.dialog
-	if programVars.dialogState.type ~= text or not programVars.dialogState.enabled then
+	if programVars.dialogState.type ~= "text" or not programVars.dialogState.enabled then
 		dialog.setCursorBlink(false)
 	end
 	if programVars.dialogState.enabled then
