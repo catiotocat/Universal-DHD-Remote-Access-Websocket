@@ -87,13 +87,13 @@ except Exception as ex:
 
 
 async def sendGateInfo(message,gate):
-	if restrictDataAccess:
-		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Fetching perms for data access! Slot "+str(gate["Slot"]))
+	# if restrictDataAccess:
+		# print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | "+"Fetching perms for data access! Slot "+str(gate["Slot"]))
 	for client in connectedClients:
 		msg = message
 		try:
 			if restrictDataAccess:
-				allowedSlots = await getPerms(client["KeyList"])
+				allowedSlots = await getPerms(client["KeyList"],True)
 				if gate["Slot"] in allowedSlots:
 					await client["Websocket"].send(msg)
 				else:
@@ -151,7 +151,7 @@ def generateKeyString(keys):
 		firstLoop = False
 	return keyStr
 
-async def getPerms(keys):
+async def getPerms(keys,isDataCheck):
 	admin = False
 	for item in adminKeys:
 		for key in keys:
@@ -171,13 +171,14 @@ async def getPerms(keys):
 					allow = True
 			if allow:
 				allowedSlots.append(s["Slot"])
-	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | \033[96mgetPerms: "+generateKeyString(keys)+" Perms: "+json.dumps(allowedSlots)+"\033[0m")
+	if not isDataCheck:
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | "+"\033[96mgetPerms: "+generateKeyString(keys)+" Perms: "+json.dumps(allowedSlots)+"\033[0m")
 	return allowedSlots
 
 async def broadcastPerms():
 	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Fetching perms for broadcast!")
 	for client in connectedClients:
-		allowedSlots = await getPerms(client["KeyList"])
+		allowedSlots = await getPerms(client["KeyList"],False)
 		connectedSlots = []
 		for gate in connectedStargates:
 			connectedSlots.append(gate["Slot"])
@@ -298,7 +299,7 @@ async def handleClient(websocket,initialMessage):
 				await websocket.send('{"type":"keepalive"}')
 				if msg == "-SLOTS":
 					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Perm Request from "+keyStr)
-					allowedSlots = await getPerms(identity["KeyList"])
+					allowedSlots = await getPerms(identity["KeyList"],False)
 					connectedSlots = []
 					for gate in connectedStargates:
 						connectedSlots.append(gate["Slot"])
@@ -313,7 +314,7 @@ async def handleClient(websocket,initialMessage):
 				else:
 					try:
 						slotNo = int(msg[0:2])
-						allowedSlots = await getPerms(identity["KeyList"])
+						allowedSlots = await getPerms(identity["KeyList"],False)
 						if slotNo in allowedSlots:
 							for gate in connectedStargates:
 								if gate["Slot"] == slotNo:

@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.1.1"
+local programVersion = "2.1.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -45,8 +45,7 @@ local data = {
 	wsListCondensed = {},
 	perms = {
 		allowed = {},
-		online = {},
-		defined = {}
+		online = {}
 	}
 } 
 local programVars = {
@@ -68,7 +67,13 @@ local programVars = {
 		textContent = "",
 		cursorPos = 1
 	},
-	borderColor = colors.lightGray
+	borderColor = colors.lightGray,
+	debugMessage = {
+		active = false,
+		message = "",
+		timer = 0,
+		queue = {}
+	}
 }
 local lastMouseEvent = {
 	"mouse_up",
@@ -92,7 +97,7 @@ local config =  {
 local argStates = {
 	update = false,
 	noUpdate = false,
-	-- debug = false,
+	debug = false,
 	version = false,
 	help = false
 }
@@ -125,8 +130,8 @@ local function init()
 			argStates.noupdate = true
 			argStates.update = false
 			config.allowUpdates = false
-		-- elseif arg == "-D" then
-		--     argState.debug = true
+		elseif arg == "-D" then
+		    argStates.debug = true
 		elseif arg == "-H" then
 			argStates.help = true
 		end
@@ -145,7 +150,7 @@ local function init()
 		print("-U - updates the program then exits")
 		print("-W <ws url> - sets the websocket url to use.")
 		print("-N - disables the automatic update check")
-		-- print("-D - enable debugging messages")
+		print("-D - enable debugging messages")
 		print("-H - show this information and exit")
 		print("-V - print the program version and exit.")
 		programVars.isRunning = false
@@ -218,6 +223,16 @@ local function init()
 			print("Please re-run the program.")
 			return
 		end
+
+	end
+
+	if not term.isColor() then
+		programVars.isRunning = false
+		programVars.noResetTerminal = true
+		print("This program requires an advanced computer or monitor.")
+		print("Press enter to continue...")
+		read()
+		return
 	end
 
 	--Convert access key list to json
@@ -226,7 +241,17 @@ local function init()
 		table.insert(keys,textutils.urlEncode(key))
 	end
 	config.accessKey = textutils.serialiseJSON(keys)
+	
+end
 
+local function debugWrite(message)
+	if programVars.debugMessage.active then
+		table.insert(programVars.debugMessage.queue,message)
+	else
+		programVars.debugMessage.active = true
+		programVars.debugMessage.message = message
+		programVars.debugMessage.timer = os.startTimer(3)
+	end
 end
 
 local function fetchAPI()
@@ -254,6 +279,12 @@ local function setBorderColor(color,gate)
 
 	windows.botWindow.setBackgroundColor(color)
 	windows.botWindow.clear()
+	windows.botWindow.setCursorPos(1,1)
+	windows.botWindow.setTextColor(colors.black)
+	if argStates.debug and programVars.debugMessage.active then
+		windows.botWindow.write(#programVars.debugMessage.queue)
+		windows.botWindow.write(" "..programVars.debugMessage.message)
+	end
 	windows.botWindow.setVisible(true)
 
 	for i=1,4 do
@@ -985,7 +1016,7 @@ local function wsHandler(event)
 	if event[3] == "INPUT USER" then
 		programVars.ws.send(config.accessKey)
 	else
-		local packet = textutils.unserializeJSON(event[3])
+		local packet, err = textutils.unserializeJSON(event[3])
 		if packet.type == "perms" then
 			data.perms = packet
 			for i, slot in pairs(data.wsList) do
@@ -1024,6 +1055,7 @@ local function sendCommand(command,parameter)
 	if #slotStr == 1 then
 		slotStr = "0"..slotStr
 	end
+	debugWrite("Sent: "..slotStr..command)
 	programVars.ws.send(slotStr..command)
 end
 
@@ -1281,10 +1313,10 @@ local function apiHandler(event)
 		if success then
 			data.apiList = success
 		else
-			--print debug emssage
+			debugWrite("API Fail: "..tostring(err))
 		end
 	else
-		--print debug message
+		debugWrite("API Fail: "..tostring(event[3]))
 	end
 end
 
@@ -1343,6 +1375,23 @@ local function main()
 			elseif event[2] == programVars.apiTimer then
 				fetchAPI()
 				programVars.apiTimer = os.startTimer(30)
+			elseif event[2] == programVars.debugMessage.timer then
+				if #programVars.debugMessage.queue > 0 then
+					local newQueue = {}
+					local isFirstIteration = true
+					for _,item in pairs(programVars.debugMessage.queue) do
+						if isFirstIteration then
+							programVars.debugMessage.message = item
+							isFirstIteration = false
+						else
+							table.insert(newQueue,item)
+						end
+					end
+					programVars.debugMessage.queue = newQueue
+					programVars.debugMessage.timer = os.startTimer(3)
+				else
+					programVars.debugMessage.active = false
+				end
 			end
 		elseif event[1] == "http_success" then
 			apiHandler(event)
