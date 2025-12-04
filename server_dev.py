@@ -86,6 +86,71 @@ except Exception as ex:
 		restrictDataAccess = False
 
 
+def tryConvertGateData(gateData):
+	convertedData = {
+		"access_key":gateData["ws-key"],
+		"gate_status":gateData["gateStatus"],
+		"control_state":gateData["controlState"],
+		"gate_info":{
+			"address":gateData["addr"],
+			"type_code":gateData["group"],
+			"open":gateData["open"],
+			"iris_present":gateData["irisPresent"],
+			"iris_closed":gateData["irisClose"],
+			"name":gateData["gateInfo"]["gate_name"],
+			"version":gateData["gateInfo"]["gate_version"],
+			"dialed_address":gateData["dialedAddr"],
+			"remote_iris":gateData["remoteIris"],
+			"cs_enabled":gateData["gateInfo"]["gate_cs_en"],
+			"cs_visible":gateData["gateInfo"]["gate_cs_vis"]
+		},
+		"udhd_info":{
+			"version":gateData["gateInfo"]["dhd_version"]+" [COMPAT]",
+			"idc_enabled":gateData["idcEN"],
+			"idc_present":gateData["idcPresent"],
+			"idc_code":gateData["idcCODE"],
+			"websocket_user":gateData["gateInfo"]["user_name"],
+			"timer_text":"TIMER: ",
+			"timer_enabled":False,
+			"timer_seconds":0,
+			"timer_minutes":0
+		},
+		"session_info":{
+			"world_name":gateData["gateInfo"]["session_name"],
+			"host_user":gateData["gateInfo"]["host_name"],
+			"user_count":gateData["playerCount"],
+			"user_limit":gateData["playerMax"],
+			"is_headless":False,
+			"is_hidden":False,
+			"access_level":0
+		},
+		"gate_list":[],
+	}
+
+	if "timerText" in gateData:
+		convertedData["udhd_info"]["timer_text"] = gateData["timerText"]
+	if "sec" in gateData and "min" in gateData:
+		convertedData["udhd_info"]["timer_enabled"] = True
+		convertedData["udhd_info"]["timer_minutes"] = gateData["min"]
+		convertedData["udhd_info"]["timer_seconds"] = gateData["sec"]
+	accessLV = gateData["gateInfo"]["access_level"]
+	if accessLV.startswith("Hidden"):
+		convertedData["session_info"]["is_hidden"] = True
+	if accessLV.endswith("Private"):
+		convertedData["session_info"]["access_level"] = 0
+	elif accessLV.endswith("LAN"):
+		convertedData["session_info"]["access_level"] = 1
+	elif accessLV.endswith("Contacts"):
+		convertedData["session_info"]["access_level"] = 2
+	elif accessLV.endswith("ContactsPlus"):
+		convertedData["session_info"]["access_level"] = 3
+	elif accessLV.endswith("RegisteredUsers"):
+		convertedData["session_info"]["access_level"] = 4
+	elif accessLV.endswith("Anyone"):
+		convertedData["session_info"]["access_level"] = 5
+
+	return convertedData
+
 async def sendGateInfo(message,gate):
 	# if restrictDataAccess:
 		# print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | "+"Fetching perms for data access! Slot "+str(gate["Slot"]))
@@ -218,6 +283,8 @@ async def serveUpdate(websocket,useDevBranch):
 async def handleStargate(websocket,initialMessage):
 	try:
 		x = json.loads(initialMessage)
+		if "ws-key" in x:
+			x = tryConvertGateData(x)
 		x = decodeVars(x)
 		slot = -1
 		for i in range(maxSlotCount):
@@ -247,6 +314,8 @@ async def handleStargate(websocket,initialMessage):
 					async with asyncio.timeout(40):
 						msg = await websocket.recv()
 					x = json.loads(msg)
+					if "ws-key" in x:
+						x = tryConvertGateData(x)
 					x = decodeVars(x)
 					if "access_key" in x:
 						del x["access_key"]
