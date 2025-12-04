@@ -86,6 +86,71 @@ except Exception as ex:
 		restrictDataAccess = False
 
 
+def tryConvertGateData(gateData):
+	convertedData = {
+		"access_key":gateData["ws-key"],
+		"gate_status":gateData["gateStatus"],
+		"control_state":gateData["controlState"],
+		"gate_info":{
+			"address":gateData["addr"],
+			"type_code":gateData["group"],
+			"open":gateData["open"],
+			"iris_present":gateData["irisPresent"],
+			"iris_closed":gateData["irisClose"],
+			"name":gateData["gateInfo"]["gate_name"],
+			"version":gateData["gateInfo"]["gate_version"],
+			"dialed_address":gateData["dialedAddr"],
+			"remote_iris":gateData["remoteIris"],
+			"cs_enabled":gateData["gateInfo"]["gate_cs_en"],
+			"cs_visible":gateData["gateInfo"]["gate_cs_vis"]
+		},
+		"udhd_info":{
+			"version":gateData["gateInfo"]["dhd_version"]+" [COMPAT]",
+			"idc_enabled":gateData["idcEN"],
+			"idc_present":gateData["idcPresent"],
+			"idc_code":gateData["idcCODE"],
+			"websocket_user":gateData["gateInfo"]["user_name"],
+			"timer_text":"TIMER: ",
+			"timer_enabled":False,
+			"timer_seconds":0,
+			"timer_minutes":0
+		},
+		"session_info":{
+			"world_name":gateData["gateInfo"]["session_name"],
+			"host_user":gateData["gateInfo"]["host_name"],
+			"user_count":gateData["playerCount"],
+			"user_limit":gateData["playerMax"],
+			"is_headless":False,
+			"is_hidden":False,
+			"access_level":0
+		},
+		"gate_list":[],
+	}
+
+	if "timerText" in gateData:
+		convertedData["udhd_info"]["timer_text"] = gateData["timerText"]
+	if "sec" in gateData and "min" in gateData:
+		convertedData["udhd_info"]["timer_enabled"] = True
+		convertedData["udhd_info"]["timer_minutes"] = gateData["min"]
+		convertedData["udhd_info"]["timer_seconds"] = gateData["sec"]
+	accessLV = gateData["gateInfo"]["access_level"]
+	if accessLV.startswith("Hidden"):
+		convertedData["session_info"]["is_hidden"] = True
+	if accessLV.endswith("Private"):
+		convertedData["session_info"]["access_level"] = 0
+	elif accessLV.endswith("LAN"):
+		convertedData["session_info"]["access_level"] = 1
+	elif accessLV.endswith("Contacts"):
+		convertedData["session_info"]["access_level"] = 2
+	elif accessLV.endswith("ContactsPlus"):
+		convertedData["session_info"]["access_level"] = 3
+	elif accessLV.endswith("RegisteredUsers"):
+		convertedData["session_info"]["access_level"] = 4
+	elif accessLV.endswith("Anyone"):
+		convertedData["session_info"]["access_level"] = 5
+
+	return convertedData
+
 async def sendGateInfo(message,gate):
 	# if restrictDataAccess:
 		# print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | "+"Fetching perms for data access! Slot "+str(gate["Slot"]))
@@ -99,7 +164,7 @@ async def sendGateInfo(message,gate):
 				else:
 					raw = {
 						"slot":gate["Slot"],
-						"gateStatus":-1,
+						"gate_status":-1,
 						"type":"stargate"
 					}
 					msg = json.dumps(raw)
@@ -122,22 +187,34 @@ def decodeSingleVar(tbl,key):
 	return tbl
 
 def decodeVars(tbl):
-	tbl = decodeSingleVar(tbl,"timerText")
-	tbl = decodeSingleVar(tbl,"idcCODE")
-	tbl = decodeSingleVar(tbl,"addr")
-	tbl = decodeSingleVar(tbl,"group")
-	tbl = decodeSingleVar(tbl,"dialedAddr")
-	tbl = decodeSingleVar(tbl,"ws-key")
-	if "gateInfo"  in tbl:
-		gateInfo = tbl["gateInfo"]
-		gateInfo = decodeSingleVar(gateInfo,"session_name")
-		gateInfo = decodeSingleVar(gateInfo,"host_name")
-		gateInfo = decodeSingleVar(gateInfo,"gate_name")
-		gateInfo = decodeSingleVar(gateInfo,"gate_version")
-		gateInfo = decodeSingleVar(gateInfo,"dhd_version")
-		gateInfo = decodeSingleVar(gateInfo,"user_name")
-		gateInfo = decodeSingleVar(gateInfo,"access_level")
-		tbl["gateInfo"] = gateInfo
+	tbl = decodeSingleVar(tbl,"access_key")
+	if "gate_info" in tbl:
+		gateInfo = tbl["gate_info"]
+		gateInfo = decodeSingleVar(gateInfo,"address")
+		gateInfo = decodeSingleVar(gateInfo,"type_code")
+		gateInfo = decodeSingleVar(gateInfo,"dialed_address")
+		gateInfo = decodeSingleVar(gateInfo,"version")
+		gateInfo = decodeSingleVar(gateInfo,"name")
+		tbl["gate_info"] = gateInfo
+	if "udhd_info" in tbl:
+		gateInfo = tbl["udhd_info"]
+		gateInfo = decodeSingleVar(gateInfo,"idc_code")
+		gateInfo = decodeSingleVar(gateInfo,"timer_text")
+		gateInfo = decodeSingleVar(gateInfo,"websocket_user")
+		gateInfo = decodeSingleVar(gateInfo,"version")
+	if "session_info" in tbl:
+		gateInfo = tbl["session_info"]
+		gateInfo = decodeSingleVar(gateInfo,"world_name")
+		gateInfo = decodeSingleVar(gateInfo,"host_user")
+		tbl["session_info"] = gateInfo
+	if "gate_list" in tbl:
+		newlist = []
+		for item in tbl["gate_list"]:
+			item = decodeSingleVar(item,"gate_address")
+			item = decodeSingleVar(item,"gate_code")
+			item = decodeSingleVar(item,"gate_name")
+			newlist.append(item)
+		tbl["gate_list"] = newlist
 	return tbl
 
 def generateKeyString(keys):
@@ -206,6 +283,8 @@ async def serveUpdate(websocket,useDevBranch):
 async def handleStargate(websocket,initialMessage):
 	try:
 		x = json.loads(initialMessage)
+		if "ws-key" in x:
+			x = tryConvertGateData(x)
 		x = decodeVars(x)
 		slot = -1
 		for i in range(maxSlotCount):
@@ -219,12 +298,12 @@ async def handleStargate(websocket,initialMessage):
 					# print("Slot Set")
 		item = slot
 		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Stargate Connected")
-		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Key: "+x["ws-key"])
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Key: "+x["access_key"])
 		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Slot: "+str(item))
 		if item != -1:
-			identity = {"Websocket":websocket,"Key":x["ws-key"],"Slot":item}
+			identity = {"Websocket":websocket,"Key":x["access_key"],"Slot":item}
 			connectedStargates.append(identity)
-			del x["ws-key"]
+			del x["access_key"]
 			x["slot"] = item
 			x["type"] = "stargate"
 			await broadcastPerms()
@@ -235,9 +314,11 @@ async def handleStargate(websocket,initialMessage):
 					async with asyncio.timeout(40):
 						msg = await websocket.recv()
 					x = json.loads(msg)
-					x = decodeVars(x)
 					if "ws-key" in x:
-						del x["ws-key"]
+						x = tryConvertGateData(x)
+					x = decodeVars(x)
+					if "access_key" in x:
+						del x["access_key"]
 					x["slot"] = item
 					x["type"] = "stargate"
 					await sendGateInfo(json.dumps(x),identity)
