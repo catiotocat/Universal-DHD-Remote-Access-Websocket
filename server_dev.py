@@ -99,7 +99,7 @@ async def sendGateInfo(message,gate):
 				else:
 					raw = {
 						"slot":gate["Slot"],
-						"gateStatus":-1,
+						"gate_status":-1,
 						"type":"stargate"
 					}
 					msg = json.dumps(raw)
@@ -122,22 +122,34 @@ def decodeSingleVar(tbl,key):
 	return tbl
 
 def decodeVars(tbl):
-	tbl = decodeSingleVar(tbl,"timerText")
-	tbl = decodeSingleVar(tbl,"idcCODE")
-	tbl = decodeSingleVar(tbl,"addr")
-	tbl = decodeSingleVar(tbl,"group")
-	tbl = decodeSingleVar(tbl,"dialedAddr")
-	tbl = decodeSingleVar(tbl,"ws-key")
-	if "gateInfo"  in tbl:
-		gateInfo = tbl["gateInfo"]
-		gateInfo = decodeSingleVar(gateInfo,"session_name")
-		gateInfo = decodeSingleVar(gateInfo,"host_name")
-		gateInfo = decodeSingleVar(gateInfo,"gate_name")
-		gateInfo = decodeSingleVar(gateInfo,"gate_version")
-		gateInfo = decodeSingleVar(gateInfo,"dhd_version")
-		gateInfo = decodeSingleVar(gateInfo,"user_name")
-		gateInfo = decodeSingleVar(gateInfo,"access_level")
-		tbl["gateInfo"] = gateInfo
+	tbl = decodeSingleVar(tbl,"access_key")
+	if "gate_info" in tbl:
+		gateInfo = tbl["gate_info"]
+		gateInfo = decodeSingleVar(gateInfo,"address")
+		gateInfo = decodeSingleVar(gateInfo,"type_code")
+		gateInfo = decodeSingleVar(gateInfo,"dialed_address")
+		gateInfo = decodeSingleVar(gateInfo,"version")
+		gateInfo = decodeSingleVar(gateInfo,"name")
+		tbl["gate_info"] = gateInfo
+	if "udhd_info" in tbl:
+		gateInfo = tbl["udhd_info"]
+		gateInfo = decodeSingleVar(gateInfo,"idc_code")
+		gateInfo = decodeSingleVar(gateInfo,"timer_text")
+		gateInfo = decodeSingleVar(gateInfo,"websocket_user")
+		gateInfo = decodeSingleVar(gateInfo,"version")
+	if "session_info" in tbl:
+		gateInfo = tbl["session_info"]
+		gateInfo = decodeSingleVar(gateInfo,"world_name")
+		gateInfo = decodeSingleVar(gateInfo,"host_user")
+		tbl["session_info"] = gateInfo
+	if "gate_list" in tbl:
+		newlist = []
+		for item in tbl["gate_list"]:
+			item = decodeSingleVar(item,"gate_address")
+			item = decodeSingleVar(item,"gate_code")
+			item = decodeSingleVar(item,"gate_name")
+			newlist.append(item)
+		tbl["gate_list"] = newlist
 	return tbl
 
 def generateKeyString(keys):
@@ -219,12 +231,12 @@ async def handleStargate(websocket,initialMessage):
 					# print("Slot Set")
 		item = slot
 		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Stargate Connected")
-		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Key: "+x["ws-key"])
+		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Key: "+x["access_key"])
 		print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Slot: "+str(item))
 		if item != -1:
-			identity = {"Websocket":websocket,"Key":x["ws-key"],"Slot":item}
+			identity = {"Websocket":websocket,"Key":x["access_key"],"Slot":item}
 			connectedStargates.append(identity)
-			del x["ws-key"]
+			del x["access_key"]
 			x["slot"] = item
 			x["type"] = "stargate"
 			await broadcastPerms()
@@ -236,8 +248,8 @@ async def handleStargate(websocket,initialMessage):
 						msg = await websocket.recv()
 					x = json.loads(msg)
 					x = decodeVars(x)
-					if "ws-key" in x:
-						del x["ws-key"]
+					if "access_key" in x:
+						del x["access_key"]
 					x["slot"] = item
 					x["type"] = "stargate"
 					await sendGateInfo(json.dumps(x),identity)

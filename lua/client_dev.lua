@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.1.2"
+local programVersion = "2.2.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -347,8 +347,8 @@ local function drawMain()
 	windows.main.setVisible(false)
 	windows.main.setBackgroundColor(colors.black)
 	windows.main.clear()
-	local gateData = data.wsList[programVars.activeSlot+1] or {gateStatus = -1}
-	local gateStatus = gateData.gateStatus
+	local gateData = data.wsList[programVars.activeSlot+1] or {gate_status = -1}
+	local gateStatus = gateData.gate_status
 	if gateStatus == 0 then 
 		gateStatus = 4 
 	end
@@ -366,9 +366,9 @@ local function drawMain()
 	if gateStatus == -1 then -- No Data
 		ypos = drawLine(ypos,false,"NO DATA","1111111","fffffff")
 	else
-		if gateData.irisPresent then --Iris Controls
+		if gateData.gate_info.iris_present then --Iris Controls
 			ypos = drawLine(ypos,true,"Iris Controls")
-			if gateData.idcPresent then -- idc data
+			if gateData.udhd_info.idc_present then -- idc data
 				local textStr = "Auto Mode: "
 				local col1Str = "00000000000"
 				local col2Str = "fffffffffff"
@@ -377,7 +377,7 @@ local function drawMain()
 					col1Str = "000000"
 					col2Str = "ffffff"
 				end
-				if gateData.idcEN then
+				if gateData.udhd_info.idc_enabled then
 					textStr = textStr.."TRUE"
 					if allowed then
 						col1Str = col1Str.."ffff"
@@ -401,7 +401,7 @@ local function drawMain()
 				if useSmallForm then
 					textStr = "Code: "
 				end
-				ypos = drawLine(ypos,false,textStr..gateData.idcCODE,nil,nil,{event="idc_code",bound1=1,bound2=windx})
+				ypos = drawLine(ypos,false,textStr..gateData.udhd_info.idc_code,nil,nil,{event="idc_code",bound1=1,bound2=windx})
 			end
 			local textStr = "Iris State: "
 			local col1Str = "000000000000"
@@ -411,7 +411,7 @@ local function drawMain()
 				col1Str = "0000000"
 				col2Str = "fffffff"
 			end
-			if gateData.irisClose then
+			if gateData.gate_info.iris_closed then
 				textStr = textStr.."CLOSED"
 				if allowed then
 					col1Str = col1Str.."000000"
@@ -433,7 +433,7 @@ local function drawMain()
 			ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="iris_toggle",bound1=1,bound2=#textStr})
 		end
 		if allowed then
-			if gateData.controlState == 0 then --main
+			if gateData.control_state == 0 then --main
 				ypos = drawLine(ypos,true,"Stargate Dialing")
 				
 				local textStr = "Target Addr: "..string.sub(programVars.targetAddress.."--------",1,8)
@@ -447,14 +447,14 @@ local function drawMain()
 				ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="dial_address",bound1=1,bound2=21})
 				ypos = drawLine(ypos,false,"Dial Normally",nil,nil,{event="dial_normal",bound1=1,bound2=13})
 				ypos = drawLine(ypos,false,"Dial Instantly",nil,nil,{event="dial_instant",bound1=1,bound2=14})
-			elseif gateData.controlState == 1 then --dialing
+			elseif gateData.control_state == 1 then --dialing
 				ypos = drawLine(ypos,true,"Dialing in Progress")
 				ypos = drawLine(ypos,false,"Cancel Dial",nil,nil,{event="cancel",bound1=1,bound2=11})
-			elseif gateData.controlState == 2 then --open
+			elseif gateData.control_state == 2 then --open
 				ypos = drawLine(ypos,true,"Wormhole is Open")
 				ypos = drawLine(ypos,false,"Close Wormhole",nil,nil,{event="close",bound1=1,bound2=14})
 				local textStr, col1Str, col2Str
-				if gateData.remoteIris then
+				if gateData.gate_info.remote_iris then
 					textStr = "Remote Iris Detected"
 					col1Str = "00000000000000000000"
 					col2Str = "eeeeeeeeeeeeeeeeeeee"
@@ -465,34 +465,34 @@ local function drawMain()
 				end
 				ypos = drawLine(ypos,true,textStr,col1Str,col2Str)
 				ypos = drawLine(ypos,false,"Send IDC Code",nil,nil,{event="gdo",bound1=1,bound2=13})
-			elseif gateData.controlState == 3 then --incoming
+			elseif gateData.control_state == 3 then --incoming
 				ypos = drawLine(ypos,true,"Incoming Wormhole")
 				ypos = drawLine(ypos,false,"Please Wait...")
-			elseif gateData.controlState == 4 then --sequence complete
+			elseif gateData.control_state == 4 then --sequence complete
 				ypos = drawLine(ypos,true,"Sequence Complete")
 				ypos = drawLine(ypos,false,"Please Wait...")
-			elseif gateData.controlState == 5 then --closing
+			elseif gateData.control_state == 5 then --closing
 				ypos = drawLine(ypos,true,"Closing Wormhole")
 				ypos = drawLine(ypos,false,"Please Wait...")
 			end
 		end
 		ypos = drawLine(ypos,true,"Stargate Info")
 
-		local textStr = "Gate Address: "..string.sub(gateData.addr..gateData.group,1,8)
+		local textStr = "Gate Address: "..string.sub(gateData.gate_info.address..gateData.gate_info.type_code,1,8)
 		local col1Str = string.sub("0000000000000000000033",1,#textStr)
 		local col2Str = string.sub("ffffffffffffffffffffff",1,#textStr)
 		if useSmallForm then
-			textStr = "Address: "..string.sub(gateData.addr..gateData.group,1,8)
+			textStr = "Address: "..string.sub(gateData.gate_info.address..gateData.gate_info.type_code,1,8)
 			col1Str = string.sub("00000000000000033",1,#textStr)
 			col2Str = string.sub("fffffffffffffffff",1,#textStr)
 		end
 		ypos = drawLine(ypos,false,textStr,col1Str,col2Str)
 		
-		local textStr = "Dialing Addr: "..string.sub(gateData.dialedAddr.."--------",1,8)
+		local textStr = "Dialing Addr: "..string.sub(gateData.gate_info.dialed_address.."--------",1,8)
 		local col1Str = string.sub("0000000000000000000033",1,#textStr)
 		local col2Str = string.sub("ffffffffffffffffffffff",1,#textStr)
 		if useSmallForm then
-			textStr = "Dialing: "..string.sub(gateData.dialedAddr.."--------",1,8)
+			textStr = "Dialing: "..string.sub(gateData.gate_info.dialed_address.."--------",1,8)
 			col1Str = string.sub("00000000000000033",1,#textStr)
 			col2Str = string.sub("fffffffffffffffff",1,#textStr)
 		end
@@ -507,7 +507,7 @@ local function drawMain()
 			col1Str = "0000"
 			col2Str = "ffff"
 		end
-		if gateData.gateInfo.gate_cs_en then
+		if gateData.gate_info.cs_enabled then
 			textStr = textStr.."TRUE"
 			col1Str = col1Str.."5555"
 			col2Str = col2Str.."ffff"
@@ -521,29 +521,29 @@ local function drawMain()
 		if useSmallForm then
 			textStr = "Gate: "
 		end
-		ypos = drawLine(ypos,false,textStr..gateData.gateInfo.gate_version)
+		ypos = drawLine(ypos,false,textStr..gateData.gate_info.version)
 		local textStr = "UDHD Ver: "
 		if useSmallForm then
 			textStr = "UDHD: "
 		end
-		ypos = drawLine(ypos,false,textStr..gateData.gateInfo.dhd_version)
+		ypos = drawLine(ypos,false,textStr..gateData.udhd_info.version)
 		
 		ypos = drawLine(ypos,true,"Session Info")
 		local textStr = "User Count: "
 		if useSmallForm then
 			textStr = "Users: "
 		end
-		ypos = drawLine(ypos,false,textStr..gateData.playerCount.."/"..gateData.playerMax)
-		if gateData.sec and gateData.min then
-			local secStr = tostring(gateData.sec)
+		ypos = drawLine(ypos,false,textStr..gateData.session_info.user_count.."/"..gateData.session_info.user_limit)
+		if gateData.udhd_info.timer_enabled then
+			local secStr = tostring(gateData.udhd_info.timer_seconds)
 			if #secStr == 1 then
 				secStr = "0"..secStr
 			end
-			local minStr = tostring(gateData.min)
+			local minStr = tostring(gateData.udhd_info.timer_minutes)
 			if #minStr == 1 then
 				minStr = "0"..minStr
 			end
-			local tmrStr = gateData.timerText or "Timer: "
+			local tmrStr = gateData.udhd_info.timer_text or "Timer: "
 			ypos = drawLine(ypos,false,tmrStr..minStr..":"..secStr)
 		end
 	end
@@ -559,15 +559,15 @@ local function drawGateList()
 		myWindow.setCursorPos(1,ypos)
 		myWindow.setBackgroundColor(colors.black)
 		myWindow.setTextColor(colors.white)
-		myWindow.write(address)
+		myWindow.write(string.sub(address.."------",1,6))
 		if gtype == 1 then
 			myWindow.setTextColor(colors.lime)
 		elseif gtype == 2 then
-			myWindow.setTextColor(colors.yellow)
+			myWindow.setTextColor(colors.lightBlue)
 		else
 			myWindow.setTextColor(colors.red)
 		end
-		myWindow.write(code)
+		myWindow.write(string.sub(code.."--",1,2))
 		if status == 1 then
 			myWindow.setTextColor(colors.black)
 			myWindow.setBackgroundColor(colors.lime)
@@ -585,8 +585,40 @@ local function drawGateList()
 	myWindow.clear()
 	myWindow.setCursorPos(1,1)
 	myWindow.write("Gate List")
+	data.genList = {}
+	local tempList = {}
+	local currentGate = data.wsList[programVars.activeSlot+1] or {gate_list = {}, gate_info = {cs_enabled = false}}
 
-	while ysize+programVars.gateListOffset-2 >= #data.apiList and not (programVars.gateListOffset <= 0) do
+	for i=1,#currentGate.gate_list do
+		local temp = currentGate.gate_list[i]
+		if temp.gate_open then
+			temp.gate_status = "OPEN"
+		else
+			temp.gate_status = "IDLE"
+		end
+		temp.session_name = temp.gate_name
+		temp.in_session = true
+		table.insert(tempList,temp)
+	end
+	if currentGate.gate_info.cs_enabled then
+		for i=1,#data.apiList do
+			table.insert(tempList,data.apiList[i])
+		end
+	end
+
+	for i=1,#tempList do
+		local isdupe = false
+		for j=i+1,#tempList do
+			if tempList[i].gate_address == tempList[j].gate_address then
+				isdupe = true
+			end
+		end
+		if not isdupe then
+			table.insert(data.genList,tempList[i])
+		end
+	end
+
+	while ysize+programVars.gateListOffset-2 >= #data.genList and not (programVars.gateListOffset <= 0) do
 		programVars.gateListOffset = programVars.gateListOffset - 1
 	end
 	if programVars.gateListOffset < 0 then
@@ -599,7 +631,7 @@ local function drawGateList()
 	end
 	for i=2,ysize do
 		local index = i+programVars.gateListOffset-1
-		local gate = data.apiList[index]
+		local gate = data.genList[index]
 		if gate then
 			local status = 0
 			if gate.gate_status == "OPEN" then
@@ -613,13 +645,15 @@ local function drawGateList()
 			if gate.is_headless then
 				gtype = 1
 			end
-			--Note: in-session gates have gtype of 2
+			if gate.in_session then
+				gtype = 2
+			end
 			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype)
 		else
 			myWindow.setCursorPos(xsize,i)
 			myWindow.clearLine()
 		end
-		local drawArrow = data.apiList[index+1] and i == ysize
+		local drawArrow = data.genList[index+1] and i == ysize
 		myWindow.setTextColor(colors.white)
 		myWindow.setBackgroundColor(colors.black)
 		if drawArrow then
@@ -681,8 +715,8 @@ local function drawSlotList()
 		local gate = data.wsListCondensed[index]
 		if gate then
 			local status = 0
-			if gate.open then
-				if gate.irisClose then
+			if gate.gate_info.open then
+				if gate.gate_info.iris_closed then
 					status = 2
 				else
 					status = 1
@@ -694,7 +728,7 @@ local function drawSlotList()
 					perms = true
 				end
 			end
-			drawEntry(i,gate.addr,gate.group,status,perms,gate.gateStatus)
+			drawEntry(i,gate.gate_info.address,gate.gate_info.type_code,status,perms,gate.gate_status)
 		else
 			myWindow.setCursorPos(xsize,i)
 			myWindow.clearLine()
@@ -740,7 +774,7 @@ local function drawDialog()
 				dialog.setTextColor(colors.black)
 				dialog.write("Gate Info")
 				local gate
-				for i, sg in pairs(data.apiList) do
+				for i, sg in pairs(data.genList) do
 					if sg.gate_address == programVars.dialogState.target then
 						gate = sg
 					end
@@ -759,14 +793,24 @@ local function drawDialog()
 				else
 					dialog.setTextColor(colors.red)
 				end
+				if gate.in_session then
+					dialog.setTextColor(colors.lightBlue)
+				end
 				dialog.write(gate.gate_code)
 				dialog.setTextColor(colors.white)
 				dialog.setCursorPos(1,3)
 				dialog.write("Name: "..gate.session_name)
-				dialog.setCursorPos(1,4)
-				dialog.write("Host: "..gate.owner_name)
-				dialog.setCursorPos(1,5)
-				dialog.write("Users: "..gate.active_users.."/"..gate.max_users)
+				if gate.in_session then
+					dialog.setCursorPos(1,4)
+					dialog.write("In-Session GateList Item")
+					dialog.setCursorPos(1,5)
+					dialog.write("Some Data Not Available")
+				else
+					dialog.setCursorPos(1,4)
+					dialog.write("Host: "..gate.owner_name)
+					dialog.setCursorPos(1,5)
+					dialog.write("Users: "..gate.active_users.."/"..gate.max_users)
+				end
 			else
 				dialog.setBackgroundColor(colors.black)
 				dialog.clear()
@@ -793,7 +837,7 @@ local function drawDialog()
 				dialog.setCursorPos(1,2)
 				dialog.write("Slot Number: "..gate.slot)
 				dialog.setCursorPos(1,3)
-				dialog.write("Address: "..gate.addr)
+				dialog.write("Address: "..gate.gate_info.address)
 				local allowed = false
 				for i=1,#data.perms.allowed do
 					if data.perms.allowed[i] == gate.slot then
@@ -805,29 +849,29 @@ local function drawDialog()
 				else
 					dialog.setTextColor(colors.red)
 				end
-				dialog.write(gate.group)
+				dialog.write(gate.gate_info.type_code)
 				dialog.setTextColor(colors.white)
 				dialog.setCursorPos(1,4)
-				dialog.write("World Name: "..gate.gateInfo.session_name)
+				dialog.write("World Name: "..gate.session_info.world_name)
 				dialog.setCursorPos(1,5)
-				dialog.write("Host: "..gate.gateInfo.host_name)
+				dialog.write("Gate Name: "..gate.gate_info.name)
 				dialog.setCursorPos(1,6)
-				dialog.write("Users: "..gate.playerCount.."/"..gate.playerMax)
+				dialog.write("Host: "..gate.session_info.host_user)
 				dialog.setCursorPos(1,7)
+				dialog.write("Users: "..gate.session_info.user_count .."/"..gate.session_info.user_limit)
+				dialog.setCursorPos(1,8)
 				dialog.write("CS Enabled: ")
-				if gate.gateInfo.gate_cs_en then
+				if gate.gate_info.cs_enabled then
 					dialog.setTextColor(colors.lime)
 					dialog.write("TRUE")
 				else
 					dialog.setTextColor(colors.red)
 					dialog.write("FALSE")
 				end
-				dialog.setTextColor(colors.white)
-				dialog.setCursorPos(1,8)
-				dialog.write("CS Name: "..gate.gateInfo.gate_name)
 				dialog.setCursorPos(1,9)
+				dialog.setTextColor(colors.white)
 				dialog.write("CS Visible: ")
-				if gate.gateInfo.gate_cs_vis then
+				if gate.gate_info.cs_visible then
 					dialog.setTextColor(colors.lime)
 					dialog.write("TRUE")
 				else
@@ -836,23 +880,40 @@ local function drawDialog()
 				end
 				dialog.setTextColor(colors.white)
 				dialog.setCursorPos(1,10)
-				dialog.write("Access Level: "..gate.gateInfo.access_level)
+				local accessLevelString = ""
+				if gate.session_info.is_hidden then
+					accessLevelString = "Hidden, "
+				end
+				if gate.session_info.access_level == 0 then
+					accessLevelString = accessLevelString.."Private (invite only)"
+				elseif gate.session_info.access_level == 1 then
+					accessLevelString = accessLevelString.."LAN"
+				elseif gate.session_info.access_level == 2 then
+					accessLevelString = accessLevelString.."Contacts"
+				elseif gate.session_info.access_level == 3 then
+					accessLevelString = accessLevelString.."Contacts+"
+				elseif gate.session_info.access_level == 4 then
+					accessLevelString = accessLevelString.."Registered Users"
+				else
+					accessLevelString = accessLevelString.."Anyone"
+				end
+				dialog.write("Access Level: "..accessLevelString)
 				dialog.setCursorPos(1,11)
-				dialog.write("Websocket User: "..gate.gateInfo.user_name)
+				dialog.write("Websocket User: "..gate.udhd_info.websocket_user)
 				dialog.setCursorPos(1,12)
-				dialog.write("Gate Version: "..gate.gateInfo.gate_version)
+				dialog.write("Gate Version: "..gate.gate_info.version)
 				dialog.setCursorPos(1,13)
-				dialog.write("UDHD Version: "..gate.gateInfo.dhd_version)
-				if gate.sec and gate.min then
-					local secStr = tostring(gate.sec)
+				dialog.write("UDHD Version: "..gate.udhd_info.version)
+				if gate.udhd_info.timer_enabled then
+					local secStr = tostring(gate.udhd_info.timer_seconds)
 					if #secStr == 1 then
 						secStr = "0"..secStr
 					end
-					local minStr = tostring(gate.min)
+					local minStr = tostring(gate.udhd_info.timer_minutes)
 					if #minStr == 1 then
 						minStr = "0"..minStr
 					end
-					local tmrStr = gate.timerText or "Timer: "
+					local tmrStr = gate.udhd_info.timer_text or "Timer: "
 					dialog.setCursorPos(1,14)
 					dialog.write(tmrStr..minStr..":"..secStr)
 				end
@@ -894,26 +955,26 @@ local function drawDialog()
 				dialog.setTextColor(colors.white)
 				dialog.write("Enter New Target Address")
 			elseif programVars.dialogState.target == "idc" then
-				if not (gate.irisPresent and gate.idcPresent and allowed) then
+				if not (gate.gate_info.iris_present and gate.udhd_info.idc_present and allowed) then
 					programVars.dialogState.enabled = false
 					os.queueEvent("refresh")
 					return
 				end
-				dialog.write("IDC Input - "..string.sub(gate.addr.."------",1,6))
+				dialog.write("IDC Input - "..string.sub(gate.gate_info.address.."------",1,6))
 				dialog.setBackgroundColor(colors.lightBlue)
-				dialog.write(string.sub(gate.group.."--",1,2))
+				dialog.write(string.sub(gate.gate_info.type_code.."--",1,2))
 				dialog.setCursorPos(1,3)
 				dialog.setBackgroundColor(colors.black)
 				dialog.setTextColor(colors.white)
 				dialog.write("Enter New IDC Code")
 			else
-				if gate.controlState ~= 2 or not allowed then
+				if gate.control_state ~= 2 or not allowed then
 					programVars.dialogState.enabled = false
 					os.queueEvent("refresh")
 					return
 				end
-				local addr = string.sub(gate.dialedAddr,1,6)
-				local group = string.sub(gate.dialedAddr,7,8)
+				local addr = string.sub(gate.gate_info.dialed_address,1,6)
+				local group = string.sub(gate.gate_info.dialed_address,7,8)
 				dialog.write("GDO Input - "..string.sub(addr.."------",1,6))
 				dialog.setBackgroundColor(colors.lightBlue)
 				dialog.write(string.sub(group.."--",1,2))
@@ -1118,7 +1179,7 @@ local function mouseHandler(event)
 		programVars.dialogState.type = "text"
 		programVars.dialogState.target = "idc"
 		local gate = data.wsList[programVars.activeSlot+1]
-		programVars.dialogState.content = gate.idcCODE
+		programVars.dialogState.content = gate.udhd_info.idc_code
 		programVars.dialogState.cursorPos = #programVars.dialogState.content+1
 	end
 	local function spawnGDODialog()
@@ -1208,7 +1269,7 @@ local function mouseHandler(event)
 						programVars.gateListOffset = programVars.gateListOffset + 1
 					end
 				elseif my ~= 1 then
-					local gate = data.apiList[my+programVars.gateListOffset-1]
+					local gate = data.genList[my+programVars.gateListOffset-1]
 					if gate then
 						if mx == windx-1 then
 							programVars.dialogState.enabled = true
