@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.3.0"
+local programVersion = "2.4.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -45,7 +45,8 @@ local data = {
 	wsListCondensed = {},
 	perms = {
 		allowed = {},
-		online = {}
+		online = {},
+		admin = false,
 	}
 } 
 local programVars = {
@@ -99,7 +100,8 @@ local argStates = {
 	noUpdate = false,
 	debug = false,
 	version = false,
-	help = false
+	help = false,
+	noAdmin = false
 }
 local colorPalette = {
 	colors={colors.lime,colors.red,colors.yellow,colors.black,colors.blue,colors.white,colors.lightBlue},
@@ -134,6 +136,8 @@ local function init()
 		    argStates.debug = true
 		elseif arg == "-H" then
 			argStates.help = true
+		elseif arg == "-P" then
+			argStates.noAdmin = true
 		end
 	end
 
@@ -151,6 +155,7 @@ local function init()
 		print("-W <ws url> - sets the websocket url to use.")
 		print("-N - disables the automatic update check")
 		print("-D - enable debugging messages")
+		print("-P - hide potentially sensitive data (IDC Codes, Admin info)")
 		print("-H - show this information and exit")
 		print("-V - print the program version and exit.")
 		programVars.isRunning = false
@@ -284,6 +289,8 @@ local function setBorderColor(color,gate)
 	if argStates.debug and programVars.debugMessage.active then
 		windows.botWindow.write(#programVars.debugMessage.queue)
 		windows.botWindow.write(" "..programVars.debugMessage.message)
+	elseif argStates.debug then
+		windows.botWindow.write("DEBUG")
 	end
 	windows.botWindow.setVisible(true)
 
@@ -402,7 +409,11 @@ local function drawMain()
 					if useSmallForm then
 						textStr = "Code: "
 					end
-					ypos = drawLine(ypos,false,textStr..gateData.udhd_info.idc_code,nil,nil,{event="idc_code",bound1=1,bound2=windx})
+					local codeToShow = gateData.udhd_info.idc_code
+					if argStates.noAdmin then
+						codeToShow = "CLICK TO SHOW"
+					end
+					ypos = drawLine(ypos,false,textStr..codeToShow,nil,nil,{event="idc_code",bound1=1,bound2=windx})
 				end
 			end
 			local textStr = "Iris State: "
@@ -672,12 +683,14 @@ end
 local function drawSlotList()
 	local myWindow = windows.slotList
 	local xsize,ysize = myWindow.getSize()
-	local function drawEntry(ypos,address,code,status,gtype,gStatus)
+	local function drawEntry(ypos,address,code,status,gtype,gStatus,admin)
 		myWindow.setCursorPos(1,ypos)
 		myWindow.setBackgroundColor(colors.black)
 		myWindow.setTextColor(gateStatusPalette[gStatus+2])
 		myWindow.write(string.sub(address.."------",1,6))
-		if gtype then
+		if admin then
+			myWindow.setTextColor(colors.lightBlue)
+		elseif gtype then
 			myWindow.setTextColor(colors.lime)
 		else
 			myWindow.setTextColor(colors.red)
@@ -730,7 +743,11 @@ local function drawSlotList()
 					perms = true
 				end
 			end
-			drawEntry(i,gate.gate_info.address,gate.gate_info.type_code,status,perms,gate.gate_status)
+			local admin = false
+			if gate.access_key then
+				admin = true
+			end
+			drawEntry(i,gate.gate_info.address,gate.gate_info.type_code,status,perms,gate.gate_status,admin)
 		else
 			myWindow.setCursorPos(xsize,i)
 			myWindow.clearLine()
@@ -846,7 +863,13 @@ local function drawDialog()
 						allowed = true
 					end
 				end
-				if allowed then
+				local admin = false
+				if gate.access_key then
+					admin = true
+				end
+				if admin then
+					dialog.setTextColor(colors.lightBlue)
+				elseif allowed then
 					dialog.setTextColor(colors.lime)
 				else
 					dialog.setTextColor(colors.red)
@@ -906,6 +929,7 @@ local function drawDialog()
 				dialog.write("Gate Version: "..gate.gate_info.version)
 				dialog.setCursorPos(1,13)
 				dialog.write("UDHD Version: "..gate.udhd_info.version)
+				local ypos = 14
 				if gate.udhd_info.timer_enabled then
 					local secStr = tostring(gate.udhd_info.timer_seconds)
 					if #secStr == 1 then
@@ -916,8 +940,13 @@ local function drawDialog()
 						minStr = "0"..minStr
 					end
 					local tmrStr = gate.udhd_info.timer_text or "Timer: "
-					dialog.setCursorPos(1,14)
+					dialog.setCursorPos(1,ypos)
+					ypos = ypos + 1
 					dialog.write(tmrStr..minStr..":"..secStr)
+				end
+				if gate.access_key and not argStates.noAdmin then
+					dialog.setCursorPos(1,ypos)
+					dialog.write("Access Key: "..gate.access_key)
 				end
 			end
 		elseif programVars.dialogState.type == "text" then

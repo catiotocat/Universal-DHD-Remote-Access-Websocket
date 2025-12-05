@@ -158,9 +158,17 @@ async def sendGateInfo(message,gate):
 		msg = message
 		try:
 			# if restrictDataAccess:
-			allowedSlots = await getPerms(client["KeyList"],True)
+			allowedSlots = getPerms(client["KeyList"],True)
+			admin = checkAdmin(client["KeyList"])
 			if gate["Slot"] in allowedSlots:
-				await client["Websocket"].send(msg)
+				if admin:
+					await client["Websocket"].send(msg)
+				else:
+					rawdata = json.loads(msg)
+					if "access_key" in rawdata:
+						del rawdata["access_key"]
+					msg = json.dumps(rawdata)
+					await client["Websocket"].send(msg)
 			else:
 				if restrictDataAccess:
 					raw = {
@@ -173,6 +181,8 @@ async def sendGateInfo(message,gate):
 				else:
 					rawdata = json.loads(msg)
 					rawdata["udhd_info"]["idc_code"] = ""
+					if "access_key" in rawdata:
+						del rawdata["access_key"]
 					msg = json.dumps(rawdata)
 					await client["Websocket"].send(msg)
 			# else:
@@ -234,12 +244,16 @@ def generateKeyString(keys):
 		firstLoop = False
 	return keyStr
 
-async def getPerms(keys,isDataCheck):
+def checkAdmin(keys):
 	admin = False
 	for item in adminKeys:
 		for key in keys:
 			if item == key:
 				admin = True
+	return admin
+
+def getPerms(keys,isDataCheck):
+	admin = checkAdmin(keys)
 	allowedSlots = []
 	if admin:
 		for s in connectedStargates:
@@ -261,13 +275,15 @@ async def getPerms(keys,isDataCheck):
 async def broadcastPerms():
 	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Fetching perms for broadcast!")
 	for client in connectedClients:
-		allowedSlots = await getPerms(client["KeyList"],False)
+		allowedSlots = getPerms(client["KeyList"],False)
+		admin = checkAdmin(client["KeyList"])
 		connectedSlots = []
 		for gate in connectedStargates:
 			connectedSlots.append(gate["Slot"])
 		raw = {
 			"allowed":allowedSlots,
 			"online":connectedSlots,
+			"admin":admin,
 			"type":"perms"
 		}
 		await client["Websocket"].send(json.dumps(raw))
@@ -309,7 +325,7 @@ async def handleStargate(websocket,initialMessage):
 		if item != -1:
 			identity = {"Websocket":websocket,"Key":x["access_key"],"Slot":item}
 			connectedStargates.append(identity)
-			del x["access_key"]
+			# del x["access_key"]
 			x["slot"] = item
 			x["type"] = "stargate"
 			await broadcastPerms()
@@ -323,8 +339,8 @@ async def handleStargate(websocket,initialMessage):
 					if "ws-key" in x:
 						x = tryConvertGateData(x)
 					x = decodeVars(x)
-					if "access_key" in x:
-						del x["access_key"]
+					# if "access_key" in x:
+						# del x["access_key"]
 					x["slot"] = item
 					x["type"] = "stargate"
 					await sendGateInfo(json.dumps(x),identity)
@@ -386,13 +402,15 @@ async def handleClient(websocket,initialMessage):
 				await websocket.send('{"type":"keepalive"}')
 				if msg == "-SLOTS":
 					print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Perm Request from "+keyStr)
-					allowedSlots = await getPerms(identity["KeyList"],False)
+					allowedSlots = getPerms(identity["KeyList"],False)
+					admin = checkAdmin(identity["KeyList"])
 					connectedSlots = []
 					for gate in connectedStargates:
 						connectedSlots.append(gate["Slot"])
 					raw = {
 						"allowed":allowedSlots,
 						"online":connectedSlots,
+						"admin":admin,
 						"type":"perms"
 					}
 					await identity["Websocket"].send(json.dumps(raw))
@@ -401,7 +419,7 @@ async def handleClient(websocket,initialMessage):
 				else:
 					try:
 						slotNo = int(msg[0:2])
-						allowedSlots = await getPerms(identity["KeyList"],False)
+						allowedSlots = getPerms(identity["KeyList"],False)
 						if slotNo in allowedSlots:
 							for gate in connectedStargates:
 								if gate["Slot"] == slotNo:
