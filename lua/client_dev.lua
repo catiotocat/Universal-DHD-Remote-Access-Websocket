@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.2.0"
+local programVersion = "2.3.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -267,7 +267,7 @@ local function setBorderColor(color,gate)
 	windows.topWindow.setTextColor(colors.black)
 	windows.topWindow.clear()
 	windows.topWindow.write("Universal DHD Remote Access v"..programVersion)
-	if gate.gateStatus ~= -1 then
+	if gate.gate_status ~= -1 then
 		windows.topWindow.setCursorPos(xsize-5,1)
 		windows.topWindow.write(" i ")
 	end
@@ -397,11 +397,13 @@ local function drawMain()
 					end
 				end
 				ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="idc_toggle",bound1=1,bound2=#textStr})
-				local textStr = "Iris Code: "
-				if useSmallForm then
-					textStr = "Code: "
+				if allowed then
+					local textStr = "Iris Code: "
+					if useSmallForm then
+						textStr = "Code: "
+					end
+					ypos = drawLine(ypos,false,textStr..gateData.udhd_info.idc_code,nil,nil,{event="idc_code",bound1=1,bound2=windx})
 				end
-				ypos = drawLine(ypos,false,textStr..gateData.udhd_info.idc_code,nil,nil,{event="idc_code",bound1=1,bound2=windx})
 			end
 			local textStr = "Iris State: "
 			local col1Str = "000000000000"
@@ -1092,7 +1094,7 @@ local function wsHandler(event)
 				end
 			end
 		elseif packet.type == "stargate" then
-			if packet.gateStatus == -1 then
+			if packet.gate_status == -1 then
 				local slotNo = packet.slot
 				data.wsList[slotNo+1] = nil
 			else
@@ -1102,7 +1104,26 @@ local function wsHandler(event)
 		end
 		data.wsListCondensed = {}
 		for i, slot in pairs(data.wsList) do
-			table.insert(data.wsListCondensed,slot)
+			local allowed = false
+			for j, number in pairs(data.perms.allowed) do
+				if number == slot.slot then
+					allowed = true
+				end
+			end
+			if allowed then
+				table.insert(data.wsListCondensed,slot)
+			end
+		end
+		for i, slot in pairs(data.wsList) do
+			local allowed = false
+			for j, number in pairs(data.perms.allowed) do
+				if number == slot.slot then
+					allowed = true
+				end
+			end
+			if not allowed then
+				table.insert(data.wsListCondensed,slot)
+			end
 		end
 	end
 end

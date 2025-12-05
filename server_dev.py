@@ -157,11 +157,12 @@ async def sendGateInfo(message,gate):
 	for client in connectedClients:
 		msg = message
 		try:
-			if restrictDataAccess:
-				allowedSlots = await getPerms(client["KeyList"],True)
-				if gate["Slot"] in allowedSlots:
-					await client["Websocket"].send(msg)
-				else:
+			# if restrictDataAccess:
+			allowedSlots = await getPerms(client["KeyList"],True)
+			if gate["Slot"] in allowedSlots:
+				await client["Websocket"].send(msg)
+			else:
+				if restrictDataAccess:
 					raw = {
 						"slot":gate["Slot"],
 						"gate_status":-1,
@@ -169,8 +170,13 @@ async def sendGateInfo(message,gate):
 					}
 					msg = json.dumps(raw)
 					await client["Websocket"].send(msg)
-			else:
-				await client["Websocket"].send(msg)
+				else:
+					rawdata = json.loads(msg)
+					rawdata["udhd_info"]["idc_code"] = ""
+					msg = json.dumps(rawdata)
+					await client["Websocket"].send(msg)
+			# else:
+			# 	await client["Websocket"].send(msg)
 		except:
 			pass
 
