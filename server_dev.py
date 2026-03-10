@@ -151,11 +151,12 @@ def tryConvertGateData(gateData):
 
 	return convertedData
 
-async def sendGateInfo(message,gate):
+async def sendGateInfo(message,rawMessage,gate):
 	# if restrictDataAccess:
 		# print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | "+"Fetching perms for data access! Slot "+str(gate["Slot"]))
 	for client in connectedClients:
 		msg = message
+		msgRaw = rawMessage
 		try:
 			# if restrictDataAccess:
 			allowedSlots = getPerms(client["KeyList"],True)
@@ -164,7 +165,10 @@ async def sendGateInfo(message,gate):
 				if admin:
 					await client["Websocket"].send(msg)
 				else:
-					rawdata = json.loads(msg)
+					if client["Raw"]:
+						rawdata = json.loads(msgRaw)
+					else:
+						rawdata = json.loads(msg)
 					if "access_key" in rawdata:
 						del rawdata["access_key"]
 					msg = json.dumps(rawdata)
@@ -179,7 +183,10 @@ async def sendGateInfo(message,gate):
 					msg = json.dumps(raw)
 					await client["Websocket"].send(msg)
 				else:
-					rawdata = json.loads(msg)
+					if client["Raw"]:
+						rawdata = json.loads(msgRaw)
+					else:
+						rawdata = json.loads(msg)
 					rawdata["udhd_info"]["idc_code"] = ""
 					if "access_key" in rawdata:
 						del rawdata["access_key"]
@@ -307,6 +314,7 @@ async def handleStargate(websocket,initialMessage):
 		x = json.loads(initialMessage)
 		if "ws-key" in x:
 			x = tryConvertGateData(x)
+		y = json.dumps(x)
 		x = decodeVars(x)
 		slot = -1
 		for i in range(maxSlotCount):
@@ -326,10 +334,13 @@ async def handleStargate(websocket,initialMessage):
 			identity = {"Websocket":websocket,"Key":x["access_key"],"Slot":item}
 			connectedStargates.append(identity)
 			# del x["access_key"]
+			y = json.loads(y)
 			x["slot"] = item
 			x["type"] = "stargate"
+			y["slot"] = item
+			y["type"] = "stargate"
 			await broadcastPerms()
-			await sendGateInfo(json.dumps(x),identity)
+			await sendGateInfo(json.dumps(x),json.dumps(y),identity)
 			await query()
 			while True:
 				try:
@@ -338,12 +349,16 @@ async def handleStargate(websocket,initialMessage):
 					x = json.loads(msg)
 					if "ws-key" in x:
 						x = tryConvertGateData(x)
+					y = json.dumps(y)
 					x = decodeVars(x)
 					# if "access_key" in x:
 						# del x["access_key"]
+					y = json.loads(y)
+					y["slot"] = item
+					y["type"] = "stargate"
 					x["slot"] = item
 					x["type"] = "stargate"
-					await sendGateInfo(json.dumps(x),identity)
+					await sendGateInfo(json.dumps(x),json.dumps(y),identity)
 				except TimeoutError:
 					try:
 						await websocket.send("CLOSING DUE TO INACTIVITY")
@@ -373,7 +388,17 @@ async def handleStargate(websocket,initialMessage):
 		await websocket.close()
 
 async def handleClient(websocket,initialMessage):
-	if initialMessage.startswith("[") and initialMessage.endswith("]"):
+	if initialMessage.startswith("{") and initialMessage.endswith("}"):
+		raw = json.loads(initialMessage)
+		keys = []
+		for key in raw["keys"]:
+			keys.append(parse.unquote_plus(key))
+		identity = {
+			"Websocket":websocket,
+			"KeyList":keys,
+			"Raw":raw["raw"]
+		}
+	elif initialMessage.startswith("[") and initialMessage.endswith("]"):
 		#json array
 		raw = json.loads(initialMessage)
 		keys = []
@@ -381,13 +406,15 @@ async def handleClient(websocket,initialMessage):
 			keys.append(parse.unquote_plus(key))
 		identity = {
 			"Websocket":websocket,
-			"KeyList":keys
+			"KeyList":keys,
+			"Raw":False
 		}
 	else:
 		#normal key
 		identity = {
 			"Websocket":websocket,
-			"KeyList":[initialMessage]
+			"KeyList":[initialMessage],
+			"Raw":False
 		}
 	keyStr = generateKeyString(identity["KeyList"])
 	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | Client Connected: "+keyStr)
@@ -439,6 +466,20 @@ async def handleClient(websocket,initialMessage):
 				pass
 			break
 
+async def doClientTypeCheck(websocket,user):
+	if user.startswith("{") and user.endswith("}"):
+		# parse json
+		s = json.loads(user)
+		if "keys" in s:
+			await handleClient(websocket,user)
+		else:
+			await handleStargate(websocket,user)
+	elif user.startswith("[") and user.endswith("]"):
+		await handleClient(websocket,user)
+	else:
+		await handleClient(websocket,user)
+
+
 async def handler(websocket):
 	await websocket.send("INPUT USER")
 	user = await websocket.recv()
@@ -447,11 +488,11 @@ async def handler(websocket):
 	elif user == "-UPDATE_DEV":
 		await serveUpdate(websocket,True)
 	elif user.startswith("{") and user.endswith("}"): #Stargate
-		await handleStargate(websocket,user)
+		await doClientTypeCheck(websocket,user)
 	elif user.startswith("[") and user.endswith("]"): #Client
-		await handleClient(websocket,user)
+		await doClientTypeCheck(websocket,user)
 	else:
-		websocket.close()
+		await websocket.close()
 
 
 async def main():

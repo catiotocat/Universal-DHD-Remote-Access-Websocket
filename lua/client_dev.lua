@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.4.0"
+local programVersion = "2.5.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -32,6 +32,11 @@ settings.define("udhdRemoteAccess.useDevBranch",{
 	description="Set to true to use the development branch for automatic updates.", 
 	default = false, 
 	type="boolean"
+})
+settings.define("udhdRemoteAccess.apiKey",{
+	description="The API Key to use with the Stargate API. Leave blank to use the public api.", 
+	default = "", 
+	type="string"
 })
 settings.save() --save all changes to the computer settings
 
