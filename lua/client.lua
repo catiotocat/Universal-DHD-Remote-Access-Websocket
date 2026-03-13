@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.4.0"
+local programVersion = "2.4.1"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -90,7 +90,7 @@ local gateStatusPalette = {
 }
 local config =  {
 	wsURL = settings.get("udhdRemoteAccess.websocketUrl"),
-	apiURL = "https://api.rxserver.net/stargates/",
+	apiURL = "https://dash.ancientsofresonite.net/api/stargates",
 	accessKey = settings.get("udhdRemoteAccess.accessKey"),
 	allowUpdates = settings.get("udhdRemoteAccess.allowUpdates"),
 	useDevBranch = settings.get("udhdRemoteAccess.useDevBranch")
