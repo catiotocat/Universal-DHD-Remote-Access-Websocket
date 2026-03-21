@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.5.1"
+local programVersion = "2.5.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1504,17 +1504,7 @@ local function main()
 				programVars.apiTimer = os.startTimer(30)
 			elseif event[2] == programVars.debugMessage.timer then
 				if #programVars.debugMessage.queue > 0 then
-					local newQueue = {}
-					local isFirstIteration = true
-					for _,item in pairs(programVars.debugMessage.queue) do
-						if isFirstIteration then
-							programVars.debugMessage.message = item
-							isFirstIteration = false
-						else
-							table.insert(newQueue,item)
-						end
-					end
-					programVars.debugMessage.queue = newQueue
+					programVars.debugMessage.message = table.remove(programVars.debugMessage.queue,1)
 					programVars.debugMessage.timer = os.startTimer(3)
 				else
 					programVars.debugMessage.active = false
