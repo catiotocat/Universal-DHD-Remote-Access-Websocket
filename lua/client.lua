@@ -182,9 +182,15 @@ local function init()
 		else
 			ws.send("-UPDATE")
 		end
-		local fileConts = ws.receive()
+		local fileConts, fail = ws.receive()
 		local success = false
-		if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+		if not fileConts then
+			printError(fail)
+			if argStates.update then
+				programVars.isRunning = false
+				programVars.noResetTerminal = true
+			end
+		elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 			--parse file
 			local start1,start2 = string.find(fileConts,"local programVersion = \"")
 			local end1,end2 = string.find(fileConts,"\"\n",start2)

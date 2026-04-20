@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.5.2"
+local programVersion = "2.5.3"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -188,9 +188,15 @@ local function init()
 		else
 			ws.send("-UPDATE")
 		end
-		local fileConts = ws.receive()
+		local fileConts, fail = ws.receive()
 		local success = false
-		if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+		if not fileConts then
+			printError(fail)
+			if argStates.update then
+				programVars.isRunning = false
+				programVars.noResetTerminal = true
+			end
+		elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 			--parse file
 			local start1,start2 = string.find(fileConts,"local programVersion = \"")
 			local end1,end2 = string.find(fileConts,"\"\n",start2)
