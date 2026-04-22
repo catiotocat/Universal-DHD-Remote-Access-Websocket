@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.4.1"
+local programVersion = "2.5.3"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -32,6 +32,11 @@ settings.define("udhdRemoteAccess.useDevBranch",{
 	description="Set to true to use the development branch for automatic updates.", 
 	default = false, 
 	type="boolean"
+})
+settings.define("udhdRemoteAccess.apiKey",{
+	description="The API Key to use with the Stargate API. Leave blank to use the public api.", 
+	default = "", 
+	type="string"
 })
 settings.save() --save all changes to the computer settings
 
@@ -93,7 +98,8 @@ local config =  {
 	apiURL = "https://dash.ancientsofresonite.net/api/stargates",
 	accessKey = settings.get("udhdRemoteAccess.accessKey"),
 	allowUpdates = settings.get("udhdRemoteAccess.allowUpdates"),
-	useDevBranch = settings.get("udhdRemoteAccess.useDevBranch")
+	useDevBranch = settings.get("udhdRemoteAccess.useDevBranch"),
+	apiKey = settings.get("udhdRemoteAccess.apiKey")
 }
 local argStates = {
 	update = false,
@@ -266,7 +272,11 @@ local function debugWrite(message)
 end
 
 local function fetchAPI()
-	http.request(config.apiURL)
+	if #config.apiKey ~= 0 and not argStates.noAdmin then
+		http.request(config.apiURL.."?apikey="..config.apiKey)
+	else
+		http.request(config.apiURL)
+	end
 end
 
 local function setBorderColor(color,gate)
@@ -574,10 +584,13 @@ end
 local function drawGateList()
 	local myWindow = windows.gateList
 	local xsize,ysize = myWindow.getSize()
-	local function drawEntry(ypos,address,code,status,gtype)
+	local function drawEntry(ypos,address,code,status,gtype,hidden)
 		myWindow.setCursorPos(1,ypos)
 		myWindow.setBackgroundColor(colors.black)
 		myWindow.setTextColor(colors.white)
+		if hidden then
+			myWindow.setTextColor(colors.lightGray)
+		end
 		myWindow.write(string.sub(address.."------",1,6))
 		if gtype == 1 then
 			myWindow.setTextColor(colors.lime)
@@ -661,13 +674,16 @@ local function drawGateList()
 				end
 			end
 			local gtype = 0
+			local hidden = false
 			if gate.is_headless then
 				gtype = 1
 			end
 			if gate.in_session then
 				gtype = 2
+			else
+				hidden = not gate.public_gate
 			end
-			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype)
+			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype,hidden)
 		else
 			myWindow.setCursorPos(xsize,i)
 			myWindow.clearLine()
@@ -1494,17 +1510,7 @@ local function main()
 				programVars.apiTimer = os.startTimer(30)
 			elseif event[2] == programVars.debugMessage.timer then
 				if #programVars.debugMessage.queue > 0 then
-					local newQueue = {}
-					local isFirstIteration = true
-					for _,item in pairs(programVars.debugMessage.queue) do
-						if isFirstIteration then
-							programVars.debugMessage.message = item
-							isFirstIteration = false
-						else
-							table.insert(newQueue,item)
-						end
-					end
-					programVars.debugMessage.queue = newQueue
+					programVars.debugMessage.message = table.remove(programVars.debugMessage.queue,1)
 					programVars.debugMessage.timer = os.startTimer(3)
 				else
 					programVars.debugMessage.active = false
