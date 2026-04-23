@@ -12,7 +12,6 @@ publicAccessKey = "public"
 mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
 luaFilePath = mypath+"/lua/client.lua"
-luaDevFilePath = mypath+"/lua/client_dev.lua"
 
 defaultconfig = {
 		"key":publicAccessKey,
@@ -298,10 +297,7 @@ async def broadcastPerms():
 async def serveUpdate(websocket,useDevBranch):
 	await asyncio.sleep(1)
 	try:
-		if useDevBranch:
-			file = open(luaDevFilePath)
-		else:
-			file = open(luaFilePath)
+		file = open(luaFilePath)
 		await websocket.send(file.read())
 		file.close()
 	except:
@@ -483,10 +479,8 @@ async def doClientTypeCheck(websocket,user):
 async def handler(websocket):
 	await websocket.send("INPUT USER")
 	user = await websocket.recv()
-	if user == "-UPDATE":
+	if user == "-UPDATE" or user == "-UPDATE_DEV":
 		await serveUpdate(websocket,False)
-	elif user == "-UPDATE_DEV":
-		await serveUpdate(websocket,True)
 	elif user.startswith("{") and user.endswith("}"): #Stargate
 		await doClientTypeCheck(websocket,user)
 	elif user.startswith("[") and user.endswith("]"): #Client
