@@ -27,6 +27,7 @@ clientConfig = [
 ]
 
 adminKeys = []
+bypassKeys = []
 connectedStargates = []
 connectedClients = []
 maxSlotCount = 100
@@ -40,11 +41,10 @@ def loadConfig(config):
 	for key in config["adminKeys"]:
 		duplicate = False
 		invalid = False
-		for entry in clientConfig:
-			if key == entry:
-				duplicate = True
-			if key == publicAccessKey:
-				invalid = True
+		if key == publicAccessKey:
+			invalid = True
+		elif key in adminKeys:
+			duplicate = True
 		if duplicate:
 			print("\033[33mDuplicate Admin Key Detected: Key \""+key+"\" is defined multiple times!\033[0m")
 		elif invalid:
@@ -56,6 +56,26 @@ def loadConfig(config):
 		if config["restrictDataAccess"] == True:
 			restrictDataAccess = True
 			print("Blocking Data Access for denied slots")
+	if "restrictBypassKeys" in config:
+		for key in config["restrictBypassKeys"]:
+			duplicate = False
+			invalid = False
+			match = False
+			if key == publicAccessKey:
+				invalid = True
+			elif key in adminKeys:
+				match = True
+			elif key in bypassKeys:
+				duplicate = True
+			if duplicate:
+				print("\033[33mDuplicate Bypass Key Detected: Key \""+key+"\" is defined multiple times!\033[0m")
+			elif match:
+				print("\033[33mRedundant Bypass Key Detected: Key \""+key+"\" is an admin key!\033[0m")
+			elif invalid:
+				print("\033[33mInvalid Bypass Key Detected: Key \""+key+"\" is the public access key!\033[0m")
+			else:
+				bypassKeys.append(key)
+				print("Loaded Bypass Key: \""+key+"\"")
 
 try:
 	configFile = open(mypath+"/config/config.json")
@@ -69,6 +89,7 @@ except Exception as ex:
 	print(ex)
 	print("Using default config file")
 	adminKeys = []
+	bypassKeys = []
 	restrictDataAccess = False
 	try: # Fall back to default config file
 		configFile = open(mypath+"/config/default.json")
@@ -82,6 +103,7 @@ except Exception as ex:
 		print(ex)
 		print("Skipping config file loading.")
 		adminKeys = ["admin"]
+		bypassKeys = ["bypass"]
 		restrictDataAccess = False
 
 
@@ -160,6 +182,7 @@ async def sendGateInfo(message,rawMessage,gate):
 			# if restrictDataAccess:
 			allowedSlots = getPerms(client["KeyList"],True)
 			admin = checkAdmin(client["KeyList"])
+			bypass = checkBypass(client["KeyList"])
 			if gate["Slot"] in allowedSlots:
 				if admin:
 					await client["Websocket"].send(msg)
@@ -173,7 +196,12 @@ async def sendGateInfo(message,rawMessage,gate):
 					msg = json.dumps(rawdata)
 					await client["Websocket"].send(msg)
 			else:
-				if restrictDataAccess:
+				hidden = False
+				if "hidden" in msg["udhd_info"]: #If the udhd has a hidden flag, use it
+					hidden = msg["udhd_info"]["hidden"]
+				if msg["session_info"]["access_level"] <= 3: #Contacts+ or lower is automatically hidden regardless of other settings
+					hidden = True
+				if (restrictDataAccess or hidden) and not bypass:
 					raw = {
 						"slot":gate["Slot"],
 						"gate_status":-1,
@@ -257,6 +285,14 @@ def checkAdmin(keys):
 			if item == key:
 				admin = True
 	return admin
+
+def checkBypass(keys):
+	bypass = False
+	for item in bypassKeys:
+		for key in keys:
+			if item == key:
+				bypass = True
+	return bypass
 
 def getPerms(keys,isDataCheck):
 	admin = checkAdmin(keys)
