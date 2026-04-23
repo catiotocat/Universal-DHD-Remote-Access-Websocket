@@ -3,8 +3,8 @@
     "adminKeys":[
         "admin"
     ],
-    "restrictDataAccess":false,
-    "restrictBypassKeys":[
+    "bypassKeys":[
         "bypass"
-    ]
+    ],
+    "forceHidden":false
 }
