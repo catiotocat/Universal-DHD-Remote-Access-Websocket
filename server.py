@@ -336,7 +336,7 @@ async def broadcastPerms():
 		}
 		await client["Websocket"].send(json.dumps(raw))
 
-async def serveUpdate(websocket,useDevBranch):
+async def serveUpdate(websocket):
 	await asyncio.sleep(1)
 	try:
 		file = open(luaFilePath)
