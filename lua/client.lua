@@ -263,18 +263,13 @@ local function debugWrite(message)
 	end
 end
 
-local function addApiKey(baseURL,ignoreArg)
-	if #config.apiKey ~= 0 and (not argStates.noAdmin or ignoreArg) then
+local function addApiKey(baseURL)
+	if #config.apiKey ~= 0 then
 		return baseURL.."?apikey="..config.apiKey
 	else
 		return baseURL
 	end
 end
-
-local function isRealtimeUrl(testURL)
-	return testURL == addApiKey(config.realtimeURL,true) or testURL == config.realtimeURL
-end
-
 
 local function fetchAPI()
 	http.request(addApiKey(config.apiURL))
@@ -426,15 +421,11 @@ local function drawMain()
 				end
 				ypos = drawLine(ypos,false,textStr,col1Str,col2Str,{event="idc_toggle",bound1=1,bound2=#textStr})
 				if allowed then
-					local textStr = "Iris Code: "
+					local textStr = "Iris Code: CLICK TO SHOW"
 					if useSmallForm then
-						textStr = "Code: "
+						textStr = "Code: CLICK TO SHOW"
 					end
-					local codeToShow = gateData.udhd_info.idc_code
-					if argStates.noAdmin then
-						codeToShow = "CLICK TO SHOW"
-					end
-					ypos = drawLine(ypos,false,textStr..codeToShow,nil,nil,{event="idc_code",bound1=1,bound2=windx})
+					ypos = drawLine(ypos,false,textStr,nil,nil,{event="idc_code",bound1=1,bound2=windx})
 				end
 			end
 			local textStr = "Iris State: "
@@ -640,7 +631,9 @@ local function drawGateList()
 	if currentGate.gate_info.cs_enabled then
 		local tempTempList = {}
 		for i=1,#data.apiList do
-			table.insert(tempTempList,data.apiList[i])
+			if data.apiList[i].public_gate or not argStates.noAdmin then
+				table.insert(tempTempList,data.apiList[i])
+			end
 		end
 		while #tempTempList > 0 do
 			local highestValue = tempTempList[1].active_users
@@ -1225,7 +1218,7 @@ local function wsHandler(event)
 				table.insert(data.wsListCondensed,table.remove(tempList2,sortIndex))
 			end
 		end
-	elseif isRealtimeUrl(event[2]) then --sgn realtime socket
+	elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket
 		local packet, err = textutils.unserializeJSON(event[3])
 		--try to find match
 		local idToFind = packet.row.id
@@ -1575,7 +1568,7 @@ local function main()
 				--reconnect isn't currently supported for this socket so end program
 				programVars.isRunning = false
 				programVars.exitMessage = "Connection Closed"
-			elseif isRealtimeUrl(event[2]) then --sgn realtime socket died
+			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket died
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
 				connectRealtimeSocket()
@@ -1583,13 +1576,13 @@ local function main()
 				debugWrite("Unknown Socket Close: "..event[2])
 			end
 		elseif event[1] == "websocket_success" then
-			if isRealtimeUrl(event[2]) then
+			if event[2] == addApiKey(config.realtimeURL) then
 				programVars.realtimeSocket = event[3]
 			else
 				debugWrite("Unknown Socket Connect: "..event[2])
 			end
 		elseif event[1] == "websocket_fail" then
-			if isRealtimeUrl(event[2]) then --sgn realtime socket connection failed
+			if event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket connection failed
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Connection Failed: "..tostring(event[3]))
 				connectRealtimeSocket()
