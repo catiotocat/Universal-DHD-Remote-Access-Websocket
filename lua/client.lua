@@ -644,17 +644,17 @@ local function drawGateList()
 		end
 		while #tempTempList > 0 do
 			local highestValue = tempTempList[1].active_users
-			local highestSecondaryValue = tempTempList[1].max_users
+			local addressSort = tempTempList[1].gate_address
 			local highestValueIndex = 1
 			for i=1,#tempTempList do
 				if tempTempList[i].active_users > highestValue then
 					highestValueIndex = i
 					highestValue = tempTempList[i].active_users
-					highestSecondaryValue = tempTempList[i].max_users
-				elseif tempTempList[i].active_users == highestValue and tempTempList[i].max_users > highestSecondaryValue then
+					addressSort = tempTempList[i].gate_address
+				elseif tempTempList[i].active_users == highestValue and tempTempList[i].gate_address < addressSort then
 					highestValueIndex = i
 					highestValue = tempTempList[i].active_users
-					highestSecondaryValue = tempTempList[i].max_users
+					addressSort = tempTempList[i].gate_address
 				end
 			end
 			table.insert(tempList,table.remove(tempTempList,highestValueIndex))
@@ -1178,6 +1178,7 @@ local function wsHandler(event)
 				end
 			end
 			data.wsListCondensed = {}
+			local tempList1 = {}
 			for i, slot in pairs(data.wsList) do
 				local allowed = false
 				for j, number in pairs(data.perms.allowed) do
@@ -1186,9 +1187,10 @@ local function wsHandler(event)
 					end
 				end
 				if allowed then
-					table.insert(data.wsListCondensed,slot)
+					table.insert(tempList1,slot)
 				end
 			end
+			local tempList2 = {}
 			for i, slot in pairs(data.wsList) do
 				local allowed = false
 				for j, number in pairs(data.perms.allowed) do
@@ -1197,8 +1199,30 @@ local function wsHandler(event)
 					end
 				end
 				if not allowed then
-					table.insert(data.wsListCondensed,slot)
+					table.insert(tempList2,slot)
 				end
+			end
+			while #tempList1 ~= 0 do
+				local addressSort = tempList1[1].gate_info.address
+				local sortIndex = 1
+				for i=1,#tempList1 do
+					if addressSort > tempList1[i].gate_info.address then
+						sortIndex = i
+						addressSort = tempList1[i].gate_info.address
+					end
+				end
+				table.insert(data.wsListCondensed,table.remove(tempList1,sortIndex))
+			end
+			while #tempList2 ~= 0 do
+				local addressSort = tempList2[1].gate_info.address
+				local sortIndex = 1
+				for i=1,#tempList1 do
+					if addressSort > tempList2[i].gate_info.address then
+						sortIndex = i
+						addressSort = tempList2[i].gate_info.address
+					end
+				end
+				table.insert(data.wsListCondensed,table.remove(tempList2,sortIndex))
 			end
 		end
 	elseif isRealtimeUrl(event[2]) then --sgn realtime socket
