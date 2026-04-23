@@ -522,7 +522,7 @@ async def handler(websocket):
 	await websocket.send("INPUT USER")
 	user = await websocket.recv()
 	if user == "-UPDATE" or user == "-UPDATE_DEV":
-		await serveUpdate(websocket,False)
+		await serveUpdate(websocket)
 	elif user.startswith("{") and user.endswith("}"): #Stargate
 		await doClientTypeCheck(websocket,user)
 	elif user.startswith("[") and user.endswith("]"): #Client
