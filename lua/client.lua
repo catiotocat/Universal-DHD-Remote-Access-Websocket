@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.5.4"
+local programVersion = "2.6.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -91,6 +91,7 @@ local gateStatusPalette = {
 local config =  {
 	wsURL = settings.get("udhdRemoteAccess.websocketUrl"),
 	apiURL = "https://dash.ancientsofresonite.net/api/stargates",
+	realtimeURL = "wss://dash.ancientsofresonite.net/api/ws",
 	accessKey = settings.get("udhdRemoteAccess.accessKey"),
 	allowUpdates = settings.get("udhdRemoteAccess.allowUpdates"),
 	useDevBranch = settings.get("udhdRemoteAccess.useDevBranch"),
@@ -262,12 +263,25 @@ local function debugWrite(message)
 	end
 end
 
-local function fetchAPI()
-	if #config.apiKey ~= 0 and not argStates.noAdmin then
-		http.request(config.apiURL.."?apikey="..config.apiKey)
+local function addApiKey(baseURL,ignoreArg)
+	if #config.apiKey ~= 0 and (not argStates.noAdmin or ignoreArg) then
+		return baseURL.."?apikey="..config.apiKey
 	else
-		http.request(config.apiURL)
+		return baseURL
 	end
+end
+
+local function isRealtimeUrl(testURL)
+	return testURL == addApiKey(config.realtimeURL,true) or testURL == config.realtimeURL
+end
+
+
+local function fetchAPI()
+	http.request(addApiKey(config.apiURL))
+end
+
+local function connectRealtimeSocket()
+	http.websocketAsync(addApiKey(config.realtimeURL))
 end
 
 local function setBorderColor(color,gate)
@@ -1136,55 +1150,82 @@ local function defineWindows()
 end
 
 local function wsHandler(event)
-	if event[3] == "INPUT USER" then
-		programVars.ws.send(config.accessKey)
-	else
-		local packet, err = textutils.unserializeJSON(event[3])
-		if packet.type == "perms" then
-			data.perms = packet
-			for i, slot in pairs(data.wsList) do
-				local found = false
-				for j=1,#packet.online do
-					if packet.online[j] == i-1 then
-						found = true
+	if event[2] == config.wsURL then
+		if event[3] == "INPUT USER" then
+			programVars.ws.send(config.accessKey)
+		else
+			local packet, err = textutils.unserializeJSON(event[3])
+			if packet.type == "perms" then
+				data.perms = packet
+				for i, slot in pairs(data.wsList) do
+					local found = false
+					for j=1,#packet.online do
+						if packet.online[j] == i-1 then
+							found = true
+						end
+					end
+					if not found then
+						data.wsList[i] = nil
 					end
 				end
-				if not found then
-					data.wsList[i] = nil
+			elseif packet.type == "stargate" then
+				if packet.gate_status == -1 then
+					local slotNo = packet.slot
+					data.wsList[slotNo+1] = nil
+				else
+					local slotNo = packet.slot
+					data.wsList[slotNo+1] = packet
 				end
 			end
-		elseif packet.type == "stargate" then
-			if packet.gate_status == -1 then
-				local slotNo = packet.slot
-				data.wsList[slotNo+1] = nil
+			data.wsListCondensed = {}
+			for i, slot in pairs(data.wsList) do
+				local allowed = false
+				for j, number in pairs(data.perms.allowed) do
+					if number == slot.slot then
+						allowed = true
+					end
+				end
+				if allowed then
+					table.insert(data.wsListCondensed,slot)
+				end
+			end
+			for i, slot in pairs(data.wsList) do
+				local allowed = false
+				for j, number in pairs(data.perms.allowed) do
+					if number == slot.slot then
+						allowed = true
+					end
+				end
+				if not allowed then
+					table.insert(data.wsListCondensed,slot)
+				end
+			end
+		end
+	elseif isRealtimeUrl(event[2]) then --sgn realtime socket
+		local packet, err = textutils.unserializeJSON(event[3])
+		--try to find match
+		local idToFind = packet.row.id
+		local matchindex = 0
+		for i=1,#data.apiList do
+			if data.apiList[i].id == idToFind then
+				matchindex = i
+				break
+			end
+		end
+		-- debugWrite("Realtime: "..packet.type.." Event Recieved")
+		if packet.type == "insert" or packet.type == "update" then
+			if matchindex ~= 0 then
+				data.apiList[matchindex] = packet.row
 			else
-				local slotNo = packet.slot
-				data.wsList[slotNo+1] = packet
+				table.insert(data.apiList,packet.row)
+			end
+		elseif packet.type == "delete" then
+			if matchindex ~= 0 then
+				table.remove(data.apiList,matchindex)
 			end
 		end
-		data.wsListCondensed = {}
-		for i, slot in pairs(data.wsList) do
-			local allowed = false
-			for j, number in pairs(data.perms.allowed) do
-				if number == slot.slot then
-					allowed = true
-				end
-			end
-			if allowed then
-				table.insert(data.wsListCondensed,slot)
-			end
-		end
-		for i, slot in pairs(data.wsList) do
-			local allowed = false
-			for j, number in pairs(data.perms.allowed) do
-				if number == slot.slot then
-					allowed = true
-				end
-			end
-			if not allowed then
-				table.insert(data.wsListCondensed,slot)
-			end
-		end
+	else
+		debugWrite("Unknown URL: "..event[2])
 	end
 end
 
@@ -1474,6 +1515,7 @@ local function main()
 			programVars.apiTimer = os.startTimer(30)
 			programVars.timeoutTimer = os.startTimer(40)
 			fetchAPI()
+			connectRealtimeSocket()
 			defineWindows()
 		else
 			programVars.exitMessage = err
@@ -1505,8 +1547,31 @@ local function main()
 			keyHandler(event)
 		elseif event[1] == "websocket_closed" then
 			--connection closed
-			programVars.isRunning = false
-			programVars.exitMessage = "Connection Closed"
+			if event[2] == config.wsURL then --udhd socket died.
+				--reconnect isn't currently supported for this socket so end program
+				programVars.isRunning = false
+				programVars.exitMessage = "Connection Closed"
+			elseif isRealtimeUrl(event[2]) then --sgn realtime socket died
+				--if this happens, we just restart the socket
+				debugWrite("SGN Realtime Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
+				connectRealtimeSocket()
+			else
+				debugWrite("Unknown Socket Close: "..event[2])
+			end
+		elseif event[1] == "websocket_success" then
+			if isRealtimeUrl(event[2]) then
+				programVars.realtimeSocket = event[3]
+			else
+				debugWrite("Unknown Socket Connect: "..event[2])
+			end
+		elseif event[1] == "websocket_fail" then
+			if isRealtimeUrl(event[2]) then --sgn realtime socket connection failed
+				--if this happens, we just restart the socket
+				debugWrite("SGN Realtime Connection Failed: "..tostring(event[3]))
+				connectRealtimeSocket()
+			else
+				debugWrite("Unknown Socket Fail: "..event[2])
+			end
 		elseif event[1] == "terminate" then
 			programVars.isRunning = false
 			programVars.exitMessage = "Terminated"
@@ -1543,6 +1608,9 @@ end
 
 if programVars.ws then
 	pcall(programVars.ws.close)
+end
+if programVars.realtimeSocket then
+	pcall(programVars.realtimeSocket.close)
 end
 if not success then
 	programVars.exitMessage = err
