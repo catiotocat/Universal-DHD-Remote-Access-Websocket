@@ -47,11 +47,6 @@ settings.define("udhdRemoteAccess.allowUpdates",{
 	default = true, 
 	type="boolean"
 })
-settings.define("udhdRemoteAccess.useDevBranch",{
-	description="Set to true to use the development branch for automatic updates.", 
-	default = false, 
-	type="boolean"
-})
 settings.save() --save all changes to the computer settings
 
 local colorBG = colors.black
@@ -241,11 +236,7 @@ if not ws then
 	return
 end
 ws.receive()
-if settings.get("udhdRemoteAccess.useDevBranch") then
-	ws.send("-UPDATE_DEV")
-else
-	ws.send("-UPDATE")
-end
+ws.send("-UPDATE")
 local fileConts = ws.receive()
 local success = false
 if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then

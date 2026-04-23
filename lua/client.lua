@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.5.3"
+local programVersion = "2.5.4"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -26,11 +26,6 @@ settings.define("udhdRemoteAccess.websocketUrl",{
 settings.define("udhdRemoteAccess.allowUpdates",{
 	description="Set to false to disable automatic updates", 
 	default = true, 
-	type="boolean"
-})
-settings.define("udhdRemoteAccess.useDevBranch",{
-	description="Set to true to use the development branch for automatic updates.", 
-	default = false, 
 	type="boolean"
 })
 settings.define("udhdRemoteAccess.apiKey",{
@@ -183,11 +178,7 @@ local function init()
 			return
 		end
 		ws.receive()
-		if config.useDevBranch then
-			ws.send("-UPDATE_DEV")
-		else
-			ws.send("-UPDATE")
-		end
+		ws.send("-UPDATE")
 		local fileConts, fail = ws.receive()
 		local success = false
 		if not fileConts then
@@ -633,8 +624,26 @@ local function drawGateList()
 		table.insert(tempList,temp)
 	end
 	if currentGate.gate_info.cs_enabled then
+		local tempTempList = {}
 		for i=1,#data.apiList do
-			table.insert(tempList,data.apiList[i])
+			table.insert(tempTempList,data.apiList[i])
+		end
+		while #tempTempList > 0 do
+			local highestValue = tempTempList[1].active_users
+			local highestSecondaryValue = tempTempList[1].max_users
+			local highestValueIndex = 1
+			for i=1,#tempTempList do
+				if tempTempList[i].active_users > highestValue then
+					highestValueIndex = i
+					highestValue = tempTempList[i].active_users
+					highestSecondaryValue = tempTempList[i].max_users
+				elseif tempTempList[i].active_users == highestValue and tempTempList[i].max_users > highestSecondaryValue then
+					highestValueIndex = i
+					highestValue = tempTempList[i].active_users
+					highestSecondaryValue = tempTempList[i].max_users
+				end
+			end
+			table.insert(tempList,table.remove(tempTempList,highestValueIndex))
 		end
 	end
 
