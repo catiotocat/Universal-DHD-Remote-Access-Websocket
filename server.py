@@ -77,9 +77,9 @@ def loadConfig(config):
 			restrictDataAccess = True
 			print("Gates are forced to hidden")
 	elif "restrictDataAccess" in config:
+		print("\033[33mWARNING: config item \"restrictDataAcces\" is deprecated! use \"forceHidden\" instead!\033[0m")
 		if config["restrictDataAccess"] == True:
 			restrictDataAccess = True
-			print("\033[33mWARNING: config item \"restrictDataAcces\" is deprecated! use \"forceHidden\" instead!\033[0m")
 			print("Gates are forced to hidden")
 
 try:
@@ -202,9 +202,10 @@ async def sendGateInfo(message,rawMessage,gate):
 					await client["Websocket"].send(msg)
 			else:
 				hidden = False
-				if "hidden" in msg["udhd_info"]: #If the udhd has a hidden flag, use it
-					hidden = msg["udhd_info"]["hidden"]
-				if msg["session_info"]["access_level"] <= 3: #Contacts+ or lower is automatically hidden regardless of other settings
+				testDat = json.loads(msg)
+				if "hidden" in testDat["udhd_info"]: #If the udhd has a hidden flag, use it
+					hidden = testDat["udhd_info"]["hidden"]
+				if testDat["session_info"]["access_level"] <= 3: #Contacts+ or lower is automatically hidden regardless of other settings
 					hidden = True
 				if (restrictDataAccess or hidden) and not bypass:
 					raw = {
@@ -285,18 +286,18 @@ def generateKeyString(keys):
 
 def checkAdmin(keys):
 	admin = False
-	for item in adminKeys:
-		for key in keys:
-			if item == key:
-				admin = True
+	for key in keys:
+		if key in adminKeys:
+			admin = True
+			break
 	return admin
 
 def checkBypass(keys):
 	bypass = False
-	for item in bypassKeys:
-		for key in keys:
-			if item == key:
-				bypass = True
+	for key in keys:
+		if key in bypassKeys:
+			bypass = True
+			break
 	return bypass
 
 def getPerms(keys,isDataCheck):
