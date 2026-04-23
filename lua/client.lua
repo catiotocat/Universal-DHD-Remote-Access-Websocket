@@ -624,7 +624,7 @@ local function drawGateList()
 	myWindow.write("Gate List")
 	data.genList = {}
 	local tempList = {}
-	local currentGate = data.wsList[programVars.activeSlot+1] or {gate_list = {}, gate_info = {cs_enabled = false}}
+	local currentGate = data.wsList[programVars.activeSlot+1] or {gate_list = {}, gate_info = {cs_enabled = true}}
 
 	for i=1,#currentGate.gate_list do
 		local temp = currentGate.gate_list[i]
