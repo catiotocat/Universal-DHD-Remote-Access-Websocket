@@ -52,12 +52,8 @@ def loadConfig(config):
 		else:
 			adminKeys.append(key)
 			print("Loaded Admin Key: \""+key+"\"")
-	if "restrictDataAccess" in config:
-		if config["restrictDataAccess"] == True:
-			restrictDataAccess = True
-			print("Blocking Data Access for denied slots")
-	if "restrictBypassKeys" in config:
-		for key in config["restrictBypassKeys"]:
+	if "bypassKeys" in config:
+		for key in config["bypassKeys"]:
 			duplicate = False
 			invalid = False
 			match = False
@@ -76,6 +72,15 @@ def loadConfig(config):
 			else:
 				bypassKeys.append(key)
 				print("Loaded Bypass Key: \""+key+"\"")
+	if "forceHidden" in config:
+		if config["forceHidden"] == True:
+			restrictDataAccess = True
+			print("Gates are forced to hidden")
+	elif "restrictDataAccess" in config:
+		if config["restrictDataAccess"] == True:
+			restrictDataAccess = True
+			print("\033[33mWARNING: config item \"restrictDataAcces\" is deprecated! use \"forceHidden\" instead!\033[0m")
+			print("Gates are forced to hidden")
 
 try:
 	configFile = open(mypath+"/config/config.json")
