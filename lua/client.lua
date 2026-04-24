@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.6.1"
+local programVersion = "2.6.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -249,7 +249,8 @@ local function init()
 	for key in string.gmatch(config.accessKey, "[^;]+") do
 		table.insert(keys,textutils.urlEncode(key))
 	end
-	config.accessKey = textutils.serialiseJSON(keys)
+	local authData = {keys=keys,raw=false}
+	config.accessKey = textutils.serialiseJSON(authData)
 	
 end
 
