@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.0"
+local programVersion = "2.7.1"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1242,7 +1242,7 @@ local function wsHandler(event)
 			while #tempList2 ~= 0 do
 				local addressSort = tempList2[1].gate_info.address
 				local sortIndex = 1
-				for i=1,#tempList1 do
+				for i=1,#tempList2 do
 					if addressSort > tempList2[i].gate_info.address then
 						sortIndex = i
 						addressSort = tempList2[i].gate_info.address
