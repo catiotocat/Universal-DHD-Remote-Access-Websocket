@@ -280,6 +280,10 @@ local function connectRealtimeSocket()
 	http.websocketAsync(addApiKey(config.realtimeURL))
 end
 
+local function connectUDHDSocket()
+	http.websocketAsync(config.wsURL)
+end
+
 local function setBorderColor(color,gate)
 	programVars.borderColor = color
 	windows.topWindow.setVisible(false)
@@ -1577,13 +1581,18 @@ local function main()
 				debugWrite("Unknown Socket Close: "..event[2])
 			end
 		elseif event[1] == "websocket_success" then
-			if event[2] == addApiKey(config.realtimeURL) then
+			if event[2] == config.wsURL then
+				programVars.ws = event[3]
+			elseif event[2] == addApiKey(config.realtimeURL) then
 				programVars.realtimeSocket = event[3]
 			else
 				debugWrite("Unknown Socket Connect: "..event[2])
 			end
 		elseif event[1] == "websocket_failure" then
-			if event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket connection failed
+			if event[2] == config.wsURL then
+				debugWrite("UDHD WS Connection Failed: "..tostring(event[3]))
+				connectUDHDSocket()
+			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket connection failed
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Connection Failed: "..tostring(event[3]))
 				connectRealtimeSocket()
