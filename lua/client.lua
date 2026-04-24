@@ -157,7 +157,7 @@ local function init()
 		print("-W <ws url> - sets the websocket url to use.")
 		print("-N - disables the automatic update check")
 		print("-D - enable debugging messages")
-		print("-P - hide potentially sensitive data (IDC Codes, Admin info)")
+		print("-P - set admin info to hidden on start")
 		print("-H - show this information and exit")
 		print("-V - print the program version and exit.")
 		programVars.isRunning = false
