@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.0"
+local programVersion = "2.6.5"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
