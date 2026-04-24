@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.6.4"
+local programVersion = "2.7.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -297,6 +297,19 @@ local function setBorderColor(color,gate)
 	windows.topWindow.setTextColor(colors.black)
 	windows.topWindow.clear()
 	windows.topWindow.write("Universal DHD Remote Access v"..programVersion)
+	if #config.apiKey ~= 0 or data.perms.admin then
+		windows.topWindow.setCursorPos(xsize-8,1)
+		if argStates.noAdmin then
+			windows.topWindow.setBackgroundColor(colors.red)
+			windows.topWindow.setTextColor(colors.white)
+		else
+			windows.topWindow.setBackgroundColor(colors.lime)
+			windows.topWindow.setTextColor(colors.black)
+		end
+		windows.topWindow.write(" A ")
+		windows.topWindow.setBackgroundColor(color)
+		windows.topWindow.setTextColor(colors.black)
+	end
 	if gate.gate_status ~= -1 then
 		windows.topWindow.setCursorPos(xsize-5,1)
 		windows.topWindow.write(" i ")
@@ -1463,6 +1476,10 @@ local function mouseHandler(event)
 						programVars.dialogState.type = "info"
 						programVars.dialogState.source = "websocket"
 						programVars.dialogState.target = index
+					end
+				elseif mx > windx-9 then
+					if #config.apiKey ~= 0 or data.perms.admin then
+						argStates.noAdmin = not argStates.noAdmin
 					end
 				end
 			elseif windName == "dialog" then
