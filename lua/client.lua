@@ -94,7 +94,6 @@ local config =  {
 	realtimeURL = "wss://dash.ancientsofresonite.net/api/ws",
 	accessKey = settings.get("udhdRemoteAccess.accessKey"),
 	allowUpdates = settings.get("udhdRemoteAccess.allowUpdates"),
-	useDevBranch = settings.get("udhdRemoteAccess.useDevBranch"),
 	apiKey = settings.get("udhdRemoteAccess.apiKey")
 }
 local argStates = {
