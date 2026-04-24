@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.6.2"
+local programVersion = "2.6.3"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -622,6 +622,7 @@ local function drawGateList()
 	local tempList = {}
 	local currentGate = data.wsList[programVars.activeSlot+1] or {gate_list = {}, gate_info = {cs_enabled = true}}
 
+	local tempTempList = {}
 	for i=1,#currentGate.gate_list do
 		local temp = currentGate.gate_list[i]
 		if temp.gate_open then
@@ -631,7 +632,18 @@ local function drawGateList()
 		end
 		temp.session_name = temp.gate_name
 		temp.in_session = true
-		table.insert(tempList,temp)
+		table.insert(tempTempList,temp)
+	end
+	while #tempTempList > 0 do
+		local sortValue = tempTempList[1].gate_address
+		local sortIndex = 1
+		for i=1,#tempTempList do
+			if tempTempList[i] < sortValue then
+				sortValue = tempTempList[i].gate_address
+				sortIndex = i
+			end
+		end
+		table.insert(tempList,table.remove(tempTempList,sortIndex))
 	end
 	if currentGate.gate_info.cs_enabled then
 		local tempTempList = {}
