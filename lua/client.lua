@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.6.5"
+local programVersion = "2.7.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1561,20 +1561,25 @@ end
 local function main()
 	init()
 	if programVars.isRunning then
-		print("Connecting...")
-		local ws,err = http.websocket(config.wsURL)
-		programVars.ws = ws
-		if programVars.ws then
-			programVars.isRunning = true
-			programVars.apiTimer = os.startTimer(30)
-			programVars.timeoutTimer = os.startTimer(40)
-			fetchAPI()
-			connectRealtimeSocket()
-			defineWindows()
-		else
-			programVars.exitMessage = err
-			programVars.isRunning = false
-		end
+		-- print("Connecting...")
+		-- local ws,err = http.websocket(config.wsURL)
+		-- programVars.ws = ws
+		-- if programVars.ws then
+		-- 	programVars.isRunning = true
+		-- 	programVars.apiTimer = os.startTimer(30)
+		-- 	programVars.timeoutTimer = os.startTimer(40)
+		-- 	fetchAPI()
+		-- 	connectRealtimeSocket()
+		-- 	defineWindows()
+		-- else
+		-- 	programVars.exitMessage = err
+		-- 	programVars.isRunning = false
+		-- end
+
+		connectUDHDSocket()
+		fetchAPI()
+		connectRealtimeSocket()
+		defineWindows()
 	end
 	while programVars.isRunning do
 		setupWindows()
@@ -1602,9 +1607,10 @@ local function main()
 		elseif event[1] == "websocket_closed" then
 			--connection closed
 			if event[2] == config.wsURL then --udhd socket died.
-				--reconnect isn't currently supported for this socket so end program
-				programVars.isRunning = false
-				programVars.exitMessage = "Connection Closed"
+				debugWrite("UDHD: Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
+				data.wsList = {}
+				data.wsListCondensed = {}
+				connectUDHDSocket()
 			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket died
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
@@ -1636,8 +1642,12 @@ local function main()
 			programVars.exitMessage = "Terminated"
 		elseif event[1] == "timer" then
 			if event[2] == programVars.timeoutTimer then
-				programVars.isRunning = false
-				programVars.exitMessage = "Connection Timed Out"
+				-- programVars.isRunning = false
+				-- programVars.exitMessage = "Connection Timed Out"
+				debugWrite("UDHD: Connection Timed Out")
+				if programVars.ws then
+					pcall(programVars.ws.close)
+				end
 			elseif event[2] == programVars.apiTimer then
 				fetchAPI()
 				programVars.apiTimer = os.startTimer(30)
