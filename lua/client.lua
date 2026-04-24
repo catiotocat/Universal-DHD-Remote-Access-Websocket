@@ -165,6 +165,10 @@ local function init()
 		return
 	end
 
+	if fs.isReadOnly(shell.getRunningProgram()) then -- sanity check to prevent crashing
+		config.allowUpdates = false
+	end
+
 	if config.allowUpdates then
 		--new update function
 		print("Checking for Updates...")
