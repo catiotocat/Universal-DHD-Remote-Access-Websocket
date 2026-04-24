@@ -77,7 +77,7 @@ def loadConfig(config):
 			restrictDataAccess = True
 			print("Gates are forced to hidden")
 	elif "restrictDataAccess" in config:
-		print("\033[33mWARNING: config item \"restrictDataAcces\" is deprecated! use \"forceHidden\" instead!\033[0m")
+		print("\033[33mWARNING: config item \"restrictDataAccess\" is deprecated! use \"forceHidden\" instead!\033[0m")
 		if config["restrictDataAccess"] == True:
 			restrictDataAccess = True
 			print("Gates are forced to hidden")
