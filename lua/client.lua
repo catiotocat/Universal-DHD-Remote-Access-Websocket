@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.2"
+local programVersion = "2.7.3"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1180,7 +1180,7 @@ end
 local function wsHandler(event)
 	if event[2] == config.wsURL then
 		if event[3] == "INPUT USER" then
-			programVars.ws.send(config.accessKey)
+			-- programVars.ws.send(config.accessKey)
 		else
 			local packet, err = textutils.unserializeJSON(event[3])
 			if packet.type == "perms" then
@@ -1623,6 +1623,7 @@ local function main()
 		elseif event[1] == "websocket_success" then
 			if event[2] == config.wsURL then
 				programVars.ws = event[3]
+				programVars.ws.send(config.accessKey)
 			elseif event[2] == addApiKey(config.realtimeURL) then
 				programVars.realtimeSocket = event[3]
 			else
