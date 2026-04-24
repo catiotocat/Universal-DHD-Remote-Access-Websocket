@@ -255,7 +255,9 @@ repeat
 	term.setTextColor(colorText)
 	local response = string.upper(readInput())
 	if response == "0" or response == "" then
-		fname = "public"
+		fname = "udhdRemoteAccess.lua"
+	elseif response == "1" then
+		fname = "client.lua"
 	elseif response == "C" then
 		local valid = true
 		repeat
