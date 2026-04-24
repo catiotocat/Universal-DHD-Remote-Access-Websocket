@@ -324,11 +324,15 @@ if not ws then
 	print("Please try again later.")
 	return
 end
-ws.receive()
+ws.receive(1)
 ws.send("-UPDATE")
-local fileConts = ws.receive()
+local fileConts, fail = ws.receive(5)
 local success = false
-if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+if not fileConts then
+	printError(fail)
+	print("Please try again later.")
+	return
+elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 	local f = fs.open(fname,"w")
 	f.write(fileConts)
 	f.close()
