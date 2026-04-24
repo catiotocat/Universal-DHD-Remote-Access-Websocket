@@ -1612,11 +1612,11 @@ local function main()
 				debugWrite("UDHD: Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
 				data.wsList = {}
 				data.wsListCondensed = {}
-				programVars.udhdReconnectTimer = os.startTimer(1)
+				programVars.udhdReconnectTimer = os.startTimer(5)
 			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket died
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
-				programVars.realtimeReconnectTimer = os.startTimer(1)
+				programVars.realtimeReconnectTimer = os.startTimer(5)
 			else
 				debugWrite("Unknown Socket Close: "..event[2])
 			end
@@ -1631,11 +1631,11 @@ local function main()
 		elseif event[1] == "websocket_failure" then
 			if event[2] == config.wsURL then
 				debugWrite("UDHD WS Connection Failed: "..tostring(event[3]))
-				programVars.udhdReconnectTimer = os.startTimer(1)
+				programVars.udhdReconnectTimer = os.startTimer(5)
 			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket connection failed
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Connection Failed: "..tostring(event[3]))
-				programVars.realtimeReconnectTimer = os.startTimer(1)
+				programVars.realtimeReconnectTimer = os.startTimer(5)
 			else
 				debugWrite("Unknown Socket Fail: "..event[2])
 			end
