@@ -183,9 +183,9 @@ local function init()
 			end
 			return
 		end
-		ws.receive()
+		ws.receive(1)
 		ws.send("-UPDATE")
-		local fileConts, fail = ws.receive()
+		local fileConts, fail = ws.receive(5)
 		local success = false
 		if not fileConts then
 			printError(fail)
