@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.1"
+local programVersion = "2.7.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -59,6 +59,8 @@ local programVars = {
 	activeSlot = 0,
 	apiTimer = 0,
 	timeoutTimer = 0,
+	udhdReconnectTimer = 0,
+	realtimeReconnectTimer = 0,
 	targetAddress = "",
 	dialogState = {
 		type = "text",
@@ -1610,11 +1612,11 @@ local function main()
 				debugWrite("UDHD: Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
 				data.wsList = {}
 				data.wsListCondensed = {}
-				connectUDHDSocket()
+				programVars.udhdReconnectTimer = os.startTimer(1)
 			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket died
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Socket Closed: ("..tostring(event[4])..") "..tostring(event[3]))
-				connectRealtimeSocket()
+				programVars.realtimeReconnectTimer = os.startTimer(1)
 			else
 				debugWrite("Unknown Socket Close: "..event[2])
 			end
@@ -1629,11 +1631,11 @@ local function main()
 		elseif event[1] == "websocket_failure" then
 			if event[2] == config.wsURL then
 				debugWrite("UDHD WS Connection Failed: "..tostring(event[3]))
-				connectUDHDSocket()
+				programVars.udhdReconnectTimer = os.startTimer(1)
 			elseif event[2] == addApiKey(config.realtimeURL) then --sgn realtime socket connection failed
 				--if this happens, we just restart the socket
 				debugWrite("SGN Realtime Connection Failed: "..tostring(event[3]))
-				connectRealtimeSocket()
+				programVars.realtimeReconnectTimer = os.startTimer(1)
 			else
 				debugWrite("Unknown Socket Fail: "..event[2])
 			end
@@ -1658,6 +1660,10 @@ local function main()
 				else
 					programVars.debugMessage.active = false
 				end
+			elseif event[2] == programVars.udhdReconnectTimer then
+				connectUDHDSocket()
+			elseif event[2] == programVars.realtimeReconnectTimer then
+				connectRealtimeSocket()
 			end
 		elseif event[1] == "http_success" then
 			apiHandler(event)
