@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.6.3"
+local programVersion = "2.6.4"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -638,7 +638,7 @@ local function drawGateList()
 		local sortValue = tempTempList[1].gate_address
 		local sortIndex = 1
 		for i=1,#tempTempList do
-			if tempTempList[i] < sortValue then
+			if tempTempList[i].gate_address < sortValue then
 				sortValue = tempTempList[i].gate_address
 				sortIndex = i
 			end
