@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.4"
+local programVersion = "2.7.5"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -603,7 +603,7 @@ end
 local function drawGateList()
 	local myWindow = windows.gateList
 	local xsize,ysize = myWindow.getSize()
-	local function drawEntry(ypos,address,code,status,gtype,hidden)
+	local function drawEntry(ypos,address,code,status,gtype,hidden,dupe)
 		myWindow.setCursorPos(1,ypos)
 		myWindow.setBackgroundColor(colors.black)
 		myWindow.setTextColor(colors.white)
@@ -611,14 +611,25 @@ local function drawGateList()
 			myWindow.setTextColor(colors.lightGray)
 		end
 		myWindow.write(string.sub(address.."------",1,6))
+		local colorCode = ""
 		if gtype == 1 then
-			myWindow.setTextColor(colors.lime)
+			colorCode = "5" --lime
 		elseif gtype == 2 then
-			myWindow.setTextColor(colors.lightBlue)
+			colorCode = "3" --lightblue
 		else
-			myWindow.setTextColor(colors.red)
+			colorCode = "e" --red
 		end
-		myWindow.write(string.sub(code.."--",1,2))
+		if not dupe then
+			colorCode = colorCode..colorCode
+		elseif dupe == 1 then
+			colorCode = colorCode.."5"
+		elseif dupe == 2 then
+			colorCode = colorCode.."3"
+		else
+			colorCode = colorCode.."e"
+		end
+		-- myWindow.write(string.sub(code.."--",1,2))
+		myWindow.blit(string.sub(code.."--",1,2),colorCode,"ff")
 		if status == 1 then
 			myWindow.setTextColor(colors.black)
 			myWindow.setBackgroundColor(colors.lime)
@@ -696,9 +707,9 @@ local function drawGateList()
 				isdupe = true
 			end
 		end
-		if not isdupe then
+		-- if not isdupe then
 			table.insert(data.genList,tempList[i])
-		end
+		-- end
 	end
 
 	while ysize+programVars.gateListOffset-2 >= #data.genList and not (programVars.gateListOffset <= 0) do
@@ -734,7 +745,22 @@ local function drawGateList()
 			else
 				hidden = not gate.public_gate
 			end
-			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype,hidden)
+			local dualList
+			for j=1,#data.genList do
+				if index ~= j then
+					if gate.gate_address == data.genList[j].gate_address then
+						dualList = 0
+						local newGate = data.genList[j]
+						if newGate.is_headless then
+							dualList = 1
+						end
+						if newGate.in_session then
+							dualList = 2
+						end
+					end
+				end
+			end
+			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype,hidden--[[,dualList]])
 		else
 			myWindow.setCursorPos(xsize,i)
 			myWindow.clearLine()
