@@ -222,12 +222,99 @@ end
 term.clear()
 term.setCursorPos(1,1)
 
+
+local fname
+valid = true
+repeat
+	reset = false
+	term.setTextColor(colorHeader)
+	print("Universal DHD Remote Access Client Installer")
+	term.setTextColor(colorText)
+	print("Please select a filename to use.")
+	print("Filenames must have the \".lua\" file extension.")
+	term.setTextColor(colorText)
+	print("0: udhdRemoteAccess.lua (default)")
+	print("1: client.lua")
+	print("C: Custom File Name")
+	print("X: Cancel Installation")
+	term.setTextColor(colorPrompt)
+	print("Enter the letter/number of your selection and press enter.")
+	print("Leave blank to use the default setting.")
+	term.setTextColor(colorHeader)
+	term.write("> ")
+	if not valid then
+		local x,y = term.getCursorPos()
+		term.setCursorPos(1,y+1)
+		term.setTextColor(colorError)
+		print("Sorry, your response was not recognized.")
+		term.setTextColor(colorText)
+		print("Please try again.")
+		term.setCursorPos(x,y)
+	end
+	valid = true
+	term.setTextColor(colorText)
+	local response = string.upper(readInput())
+	if response == "0" or response == "" then
+		fname = "public"
+	elseif response == "C" then
+		local valid = true
+		repeat
+			term.setTextColor(colorPrompt)
+			term.clearLine()
+			if valid then
+				print("Please enter the file name.")
+			else
+				valid = true
+			end
+			term.setTextColor(colorHeader)
+			term.clearLine()
+			term.write("> ")
+			term.setTextColor(colorText)
+			fname = readInput()
+			if string.sub(fname,-4,-1) ~= ".lua" then
+				term.setTextColor(colorPrompt)
+				print("The filename must have the \".lua\" file extension.")
+				print("Please try again.")
+				valid = false
+			end
+		until valid
+	elseif response == "X" then
+		reset = true
+		term.clear()
+		term.setCursorPos(1,1)
+		term.setTextColor(colorHeader)
+		print("Universal DHD Remote Access Client Installer")
+		term.setTextColor(colorText)
+		print("Would you like to cancel the installation?")
+		term.setTextColor(colorHeader)
+		term.write("y/n> ")
+		term.setTextColor(colorText)
+		response = readInput()
+		if string.lower(response) == "y" then
+			break
+		else
+			term.clear()
+			term.setCursorPos(1,1)
+		end
+	else
+		term.clear()
+		term.setCursorPos(1,1)
+		valid = false
+	end
+until valid and not reset
+if reset then 
+	printError("Exiting...")
+	return
+end
+
+
+
 term.setTextColor(colorHeader)
 print("Universal DHD Remote Access Client Installer")
 term.setTextColor(colorText)
 print("Settings have been saved.")
 
-print("Downloading udhdRemoteAccess.lua")
+print("Downloading "..fname)
 local ws,err = http.websocket(settings.get("udhdRemoteAccess.websocketUrl"))
 if not ws then 
 	printError("Download Failed")
@@ -240,7 +327,7 @@ ws.send("-UPDATE")
 local fileConts = ws.receive()
 local success = false
 if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
-	local f = fs.open("/udhdRemoteAccess.lua","w")
+	local f = fs.open(fname,"w")
 	f.write(fileConts)
 	f.close()
 	print("Download Completed")
