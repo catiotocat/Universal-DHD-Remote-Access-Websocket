@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.5"
+local programVersion = "2.7.6"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -398,7 +398,8 @@ local function drawMain()
 	if gateStatus == 0 then 
 		gateStatus = 4 
 	end
-	setBorderColor(gateStatusPalette[gateStatus+2],gateData)
+	local targetColor = gateStatusPalette[gateStatus+2] or colors.pink
+	setBorderColor(targetColor,gateData)
 	local allowed = false
 	for i, item in pairs(data.perms.allowed) do
 		if item == (gateData.slot or -1) then
@@ -409,6 +410,13 @@ local function drawMain()
 	local useSmallForm = windx < 22
 	local ypos = 1
 	programVars.mainMouseMapping = {}
+	if targetColor == colors.pink then
+		if useSmallForm then
+			ypos = drawLine(ypos,false,"INVALID STATUS","11111111111111","ffffffffffffff")
+		else
+			ypos = drawLine(ypos,false,"INVALID GATE STATUS VALUE","1111111111111111111111111","fffffffffffffffffffffffff")
+		end
+	end
 	if gateStatus == -1 then -- No Data
 		ypos = drawLine(ypos,false,"NO DATA","1111111","fffffff")
 	else
@@ -785,7 +793,8 @@ local function drawSlotList()
 	local function drawEntry(ypos,address,code,status,gtype,gStatus,admin)
 		myWindow.setCursorPos(1,ypos)
 		myWindow.setBackgroundColor(colors.black)
-		myWindow.setTextColor(gateStatusPalette[gStatus+2])
+		local colorTarget = gateStatusPalette[gStatus+2] or colors.yellow
+		myWindow.setTextColor(colorTarget)
 		myWindow.write(string.sub(address.."------",1,6))
 		if admin then
 			myWindow.setTextColor(colors.lightBlue)
@@ -1323,6 +1332,25 @@ end
 
 local function keyHandler(event)
 	local validGlyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@*"
+	if argStates.debug then
+		if event[1] == "key" then
+			if event[2] == keys.tab then
+				local f = fs.open("/client.genlist.dump","w")
+				local dat = textutils.serialise(data.genList)
+				f.write(dat)
+				f.close()
+				f = fs.open("/client.api.dump","w")
+				dat = textutils.serialise(data.apiList)
+				f.write(dat)
+				f.close()
+				f = fs.open("/client.ws.dump","w")
+				dat = textutils.serialise(data.wsList)
+				f.write(dat)
+				f.close()
+				debugWrite("Created Dump Files")
+			end
+		end
+	end
 	if not (programVars.dialogState.enabled and programVars.dialogState.type == "text") then
 		return
 	end
