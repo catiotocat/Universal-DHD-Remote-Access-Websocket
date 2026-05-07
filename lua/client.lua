@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.6"
+local programVersion = "2.7.7"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1336,15 +1336,15 @@ local function keyHandler(event)
 		if event[1] == "key" then
 			if event[2] == keys.tab then
 				local f = fs.open("/client.genlist.dump","w")
-				local dat = textutils.serialise(data.genList)
+				local dat = textutils.serialise(data.genList,{allow_repetitions = true})
 				f.write(dat)
 				f.close()
 				f = fs.open("/client.api.dump","w")
-				dat = textutils.serialise(data.apiList)
+				dat = textutils.serialise(data.apiList,{allow_repetitions = true})
 				f.write(dat)
 				f.close()
 				f = fs.open("/client.ws.dump","w")
-				dat = textutils.serialise(data.wsList)
+				dat = textutils.serialise(data.wsList,{allow_repetitions = true})
 				f.write(dat)
 				f.close()
 				debugWrite("Created Dump Files")
