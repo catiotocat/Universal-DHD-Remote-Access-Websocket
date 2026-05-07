@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.7"
+local programVersion = "2.7.8"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -1332,9 +1332,9 @@ end
 
 local function keyHandler(event)
 	local validGlyphs = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@*"
-	if argStates.debug then
-		if event[1] == "key" then
-			if event[2] == keys.tab then
+	if event[1] == "key" then
+		if event[2] == keys.tab then
+			if argStates.debug then
 				local f = fs.open("/client.genlist.dump","w")
 				local dat = textutils.serialise(data.genList,{allow_repetitions = true})
 				f.write(dat)
@@ -1349,6 +1349,9 @@ local function keyHandler(event)
 				f.close()
 				debugWrite("Created Dump Files")
 			end
+		elseif event[2] == keys.f12 then
+			--debug mode toggle
+			argStates.debug = not argStates.debug
 		end
 	end
 	if not (programVars.dialogState.enabled and programVars.dialogState.type == "text") then
