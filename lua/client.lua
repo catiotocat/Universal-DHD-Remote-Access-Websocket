@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.7.9"
+local programVersion = "2.8.0"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -630,7 +630,7 @@ local function drawGateList()
 		if not dupe then
 			colorCode = colorCode..colorCode
 		elseif dupe == 1 then
-			colorCode = colorCode.."5"
+			colorCode = colorCode.."1"
 		elseif dupe == 2 then
 			colorCode = colorCode.."3"
 		else
@@ -669,6 +669,7 @@ local function drawGateList()
 		end
 		temp.session_name = temp.gate_name
 		temp.in_session = true
+		temp.index = i
 		table.insert(tempTempList,temp)
 	end
 	while #tempTempList > 0 do
@@ -768,7 +769,17 @@ local function drawGateList()
 					end
 				end
 			end
-			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype,hidden--[[,dualList]])
+			local errorMark
+			if not gate.id then
+				errorMark = 1
+			end
+			if gate.in_session then
+				errorMark = nil
+			end
+			if not argStates.debug then
+				errorMark = nil
+			end
+			drawEntry(i,gate.gate_address,gate.gate_code,status,gtype,hidden--[[,dualList]],errorMark)
 		else
 			myWindow.setCursorPos(xsize,i)
 			myWindow.clearLine()
@@ -902,7 +913,11 @@ local function drawDialog()
 				dialog.write("Gate Info")
 				local gate
 				for i, sg in pairs(data.genList) do
-					if sg.gate_address == programVars.dialogState.target then
+					local insessionID
+					if sg.in_session then
+						insessionID = sg.gate_address..sg.gate_code..sg.index
+					end
+					if (insessionID or sg.id or sg.gate_address) == programVars.dialogState.target then
 						gate = sg
 					end
 				end
@@ -924,6 +939,16 @@ local function drawDialog()
 					dialog.setTextColor(colors.lightBlue)
 				end
 				dialog.write(gate.gate_code)
+				if argStates.debug then
+					dialog.setCursorPos(windx,2)
+					dialog.setBackgroundColor(colors.lime)
+					if gate.in_session then
+					elseif not gate.id then
+						dialog.setBackgroundColor(colors.orange)
+					end
+					dialog.write(" ")
+					dialog.setBackgroundColor(colors.black)
+				end
 				dialog.setTextColor(colors.white)
 				dialog.setCursorPos(1,3)
 				dialog.write("Name: "..gate.session_name)
@@ -1506,7 +1531,11 @@ local function mouseHandler(event)
 							programVars.dialogState.enabled = true
 							programVars.dialogState.type = "info"
 							programVars.dialogState.source = "gatelist"
-							programVars.dialogState.target = gate.gate_address
+							local insessionID
+							if gate.in_session then
+								insessionID = gate.gate_address..gate.gate_code..gate.index
+							end
+							programVars.dialogState.target = insessionID or gate.id or gate.gate_address
 						else
 							programVars.targetAddress = gate.gate_address..gate.gate_code
 							if programVars.dialogState.enabled and programVars.dialogState.type == "text" and programVars.dialogState.target == "address" then
