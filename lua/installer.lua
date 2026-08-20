@@ -12,16 +12,8 @@ end
 -- This program is in dire need of a rewrite.
 -- Said rewrite will be in-progress on the dev branch
 
-local args = {...}
-local argIndex = 1
-
 local function readInput()
-	if argIndex <= #args then
-		argIndex = argIndex + 1
-		return args[argIndex-1]
-	else
-		return read()
-	end
+	return read()
 end
 
 -- define settings variables
@@ -50,8 +42,67 @@ settings.save() --save all changes to the computer settings
 local colorBG = colors.black
 local colorText = colors.white
 local colorHeader = colors.yellow
+local colorOptionBorder = colors.yellow
+local colorOptionSymbol = colors.white
+local colorOptionsText = colors.white
+local colorOptionsDefaultIndicatorBorder = colors.yellow
+local colorOptionsDefaultIndicatorText = colors.white
 local colorError = colors.red
 local colorPrompt = colors.lightGray
+
+local function settingPrompt(headers, options, prompts)
+	local generatedOptionInfo = {
+		default = nil
+	}
+	for i=1,#headers do
+		
+
+	end
+	for i=1,#options do
+		local character = string.upper(options[i].custom_char or tostring(i-1))
+		if options[i].is_default then
+			generatedOptionInfo[character] = options[i]
+		end
+		term.setTextColor(colorOptionBorder)
+		term.write("[")
+		term.setTextColor(colorOptionSymbol)
+		term.write(character)
+		term.setTextColor(colorOptionBorder)
+		term.write("] ")
+		term.setTextColor(colorOptionsText)
+		term.write(options[i].option)
+		if options[i].is_default then
+			term.setTextColor(colorOptionsDefaultIndicatorBorder)
+			term.write(" (")
+			term.setTextColor(colorOptionsDefaultIndicatorText)
+			term.write("default")
+			term.setTextColor(colorOptionsDefaultIndicatorBorder)
+			term.write(")")
+			
+		end
+		print("")
+	end
+	-- cancel install option
+	for i=1,#prompts do
+		
+
+	end
+end
+
+--[[
+	example options list
+	{
+		{
+			is_default = true,
+			option = "ws://localhost:8059",
+			custom_char = "0",
+			func = function() end,
+			has_extra_prompt = false,
+		}
+	}
+
+]]--
+
 
 term.setBackgroundColor(colorBG)
 term.setTextColor(colorText)
