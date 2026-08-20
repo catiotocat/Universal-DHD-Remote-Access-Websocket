@@ -9,6 +9,9 @@ if not term then --Check if the program is running inside CraftOS-PC
 	return
 end
 
+-- This program is in dire need of a rewrite.
+-- Said rewrite will be in-progress on the dev branch
+
 local args = {...}
 local argIndex = 1
 
@@ -69,6 +72,9 @@ repeat
 	print("Universal DHD Remote Access Client Installer")
 	term.setTextColor(colorText)
 	print("Please select a websocket URL to use.")
+	term.write("Currently Set To: ")
+	term.setTextColor(colorPrompt)
+	print(settings.get("udhdRemoteAccess.websocketUrl"))
 	term.setTextColor(colorText)
 	print("0: wss://catio-api.merith.xyz/ (Default)")
 	print("1: ws://localhost:8059/")
@@ -151,6 +157,9 @@ repeat
 	print("Universal DHD Remote Access Client Installer")
 	term.setTextColor(colorText)
 	print("Please select an access key to use.")
+	term.write("Currently Set To: ")
+	term.setTextColor(colorPrompt)
+	print(settings.get("udhdRemoteAccess.accessKey"))
 	term.setTextColor(colorText)
 	print("0: public (Default)")
 	print("C: Custom Access Key")
