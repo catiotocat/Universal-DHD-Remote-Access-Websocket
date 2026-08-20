@@ -24,17 +24,7 @@ local function readInput()
 	end
 end
 
---The following few lines of code transfer the config to the new setting variables
-local configStrings = {"accessKey","websocketUrl","allowUpdates"}
-for i=1,#configStrings do
-	local item = configStrings[i]
-	settings.undefine("resoniteLink."..item)
-	local value = settings.get("resoniteLink."..item)
-	if value then
-		settings.set("udhdRemoteAccess."..item,value)
-		settings.unset("resoniteLink."..item)
-	end
-end
+-- define settings variables
 settings.define("udhdRemoteAccess.accessKey",{
 	description="Access Key for the webocket server", 
 	default = "public", 
@@ -42,13 +32,18 @@ settings.define("udhdRemoteAccess.accessKey",{
 })
 settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
-	default="wss://catio-api.merith.xyz/",
+	default = nil,
 	type="string"
 })
 settings.define("udhdRemoteAccess.allowUpdates",{
 	description="Set to false to disable automatic updates", 
 	default = true, 
 	type="boolean"
+})
+settings.define("udhdRemoteAccess.apiKey",{
+	description="The API Key to use with the Stargate API. Leave blank to use the public api.", 
+	default = "", 
+	type="string"
 })
 settings.save() --save all changes to the computer settings
 

@@ -13,14 +13,15 @@ if not shell then --If the shell api isn't present, return the program version f
 	return programVersion
 end
 
+-- define settings values - changed to mirror rewritten installer
 settings.define("udhdRemoteAccess.accessKey",{
-	description="Access Key(s) for the webocket server. Use \";\" to seperate keys.", 
+	description="Access Key for the webocket server", 
 	default = "public", 
 	type="string"
 })
 settings.define("udhdRemoteAccess.websocketUrl",{
 	description="Websocket URL for the server",
-	default="wss://catio-api.merith.xyz/",
+	default = nil,
 	type="string"
 })
 settings.define("udhdRemoteAccess.allowUpdates",{
