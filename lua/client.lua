@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.8.0"
+local programVersion = "2.8.1"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -15,7 +15,7 @@ end
 
 -- define settings values - changed to mirror rewritten installer
 settings.define("udhdRemoteAccess.accessKey",{
-	description="Access Key for the webocket server", 
+	description="Access Key for the webocket server. Use ';' to specify multiple keys.", 
 	default = "public", 
 	type="string"
 })
@@ -26,13 +26,18 @@ settings.define("udhdRemoteAccess.websocketUrl",{
 })
 settings.define("udhdRemoteAccess.allowUpdates",{
 	description="Set to false to disable automatic updates", 
-	default = true, 
+	default = true,
 	type="boolean"
 })
 settings.define("udhdRemoteAccess.apiKey",{
 	description="The API Key to use with the Stargate API. Leave blank to use the public api.", 
-	default = "", 
+	default = "",
 	type="string"
+})
+settings.define("udhdRemoteAccess.installPath",{
+    description="The filepath at which the program was last installed. This is set automatically when downloading the program from the server.",
+    default = nil,
+    type="string"
 })
 settings.save() --save all changes to the computer settings
 
@@ -171,6 +176,16 @@ local function init()
 		config.allowUpdates = false
 	end
 
+	if not config.wsURL then -- Sanity check for websocket url setting.
+		printError("Websocket URL is not set!")
+		print("Please set a Websocket URL using the following command:")
+		print("\"set udhdRemoteAccess.websocketUrl <url>\"")
+		--TODO: Add prompt to configure websocket url
+		programVars.isRunning = false
+		programVars.noResetTerminal = true
+		return
+	end
+
 	if config.allowUpdates then
 		--new update function
 		print("Checking for Updates...")
@@ -219,6 +234,8 @@ local function init()
 				print("Update Completed")
 				print("Old Version: "..programVersion)
 				print("New Version: "..readVersion)
+				settings.set("udhdRemoteAccess.installPath",shell.getRunningProgram())
+				settings.save()
 				success = true
 			end
 			-- sleep(5)

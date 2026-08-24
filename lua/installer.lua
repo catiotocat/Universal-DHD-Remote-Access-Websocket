@@ -48,45 +48,119 @@ local colorOptionsText = colors.white
 local colorOptionsDefaultIndicatorBorder = colors.yellow
 local colorOptionsDefaultIndicatorText = colors.white
 local colorError = colors.red
-local colorPrompt = colors.lightGray
+local colorPromptText = colors.lightGray
+local colorPrompt = colors.yellow
 
-local function settingPrompt(headers, options, prompts)
-	local generatedOptionInfo = {
-		default = nil
-	}
-	for i=1,#headers do
-		
+local function settingPrompt(headers, current, options, prompts)
+	local valid = true
+	repeat
+		local generatedOptionInfo = {
+			default = nil
+		}
+		for i=1,#headers do
+			term.setTextColor(headers[i].color)
+			print(headers[i].text)
 
-	end
-	for i=1,#options do
-		local character = string.upper(options[i].custom_char or tostring(i-1))
-		if options[i].is_default then
-			generatedOptionInfo[character] = options[i]
 		end
+		if current then
+			term.setTextColor(current.color1)
+			term.write(current.text1)
+			term.setTextColor(current.color2)
+			print(current.text2)
+		end
+		for i=1,#options do
+			local character = string.upper(options[i].custom_char or tostring(i-1))
+			if options[i].is_default then
+				generatedOptionInfo.default = options[i]
+			end
+			generatedOptionInfo[character] = options[i]
+			term.setTextColor(colorOptionBorder)
+			term.write("[")
+			term.setTextColor(colorOptionSymbol)
+			term.write(character)
+			term.setTextColor(colorOptionBorder)
+			term.write("] ")
+			term.setTextColor(colorOptionsText)
+			term.write(options[i].option)
+			if options[i].is_default then
+				term.setTextColor(colorOptionsDefaultIndicatorBorder)
+				term.write(" (")
+				term.setTextColor(colorOptionsDefaultIndicatorText)
+				term.write("default")
+				term.setTextColor(colorOptionsDefaultIndicatorBorder)
+				term.write(")")
+				
+			end
+			print("")
+		end
+
+		-- cancel install option
 		term.setTextColor(colorOptionBorder)
 		term.write("[")
 		term.setTextColor(colorOptionSymbol)
-		term.write(character)
+		term.write("X")
 		term.setTextColor(colorOptionBorder)
 		term.write("] ")
 		term.setTextColor(colorOptionsText)
-		term.write(options[i].option)
-		if options[i].is_default then
-			term.setTextColor(colorOptionsDefaultIndicatorBorder)
-			term.write(" (")
-			term.setTextColor(colorOptionsDefaultIndicatorText)
-			term.write("default")
-			term.setTextColor(colorOptionsDefaultIndicatorBorder)
-			term.write(")")
-			
-		end
-		print("")
-	end
-	-- cancel install option
-	for i=1,#prompts do
-		
+		print("Cancel Installation")
 
-	end
+		for i=1,#prompts do
+			term.setTextColor(prompts[i].color)
+			print(prompts[i].text)
+		end
+		--prompt here
+
+		if not valid then
+			local x,y = term.getCursorPos()
+			term.setCursorPos(1,y+1)
+			term.setTextColor(colorError)
+			print("Sorry, your response was not recognized.")
+			term.setTextColor(colorText)
+			print("Please try again.")
+			term.setCursorPos(x,y)
+		end
+		valid = true
+
+		term.setTextColor(colorPrompt)
+		term.write("> ")
+		-- read code will be here
+		local readValue = string.upper(read())
+
+		local optionRef
+		if readValue == "" and generatedOptionInfo.default then
+			optionRef = generatedOptionInfo.default
+		elseif generatedOptionInfo[readValue] then
+			optionRef = generatedOptionInfo[readValue]
+		elseif readValue == "X" then
+			optionRef = "ExitCheck"
+		end
+		
+		if optionRef then
+			if type(optionRef) == "table" then
+				if optionRef.func then
+					
+				end
+			else
+
+			end
+		else
+			--not recognized
+			valid = false
+
+		end
+
+	until valid
+end
+
+local function inputUrl()
+	term.setTextColor(colorPrompt)
+	term.clearLine()
+	print("Please enter the websocket URL.")
+	term.setTextColor(colorHeader)
+	term.clearLine()
+	term.write("> ")
+	term.setTextColor(colorText)
+	wsURL = readInput()
 end
 
 --[[
