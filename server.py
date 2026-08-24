@@ -12,6 +12,7 @@ publicAccessKey = "public"
 mypath = os.path.dirname(os.path.realpath(__file__))
 print(mypath)
 luaFilePath = mypath+"/lua/client.lua"
+installerFilePath = mypath+"/lua/installer.lua"
 
 defaultconfig = {
 		"key":publicAccessKey,
