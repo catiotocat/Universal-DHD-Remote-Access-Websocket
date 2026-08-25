@@ -545,6 +545,8 @@ async def handleRequest(connection,request):
 		filedata = file.read()
 		file.close()
 		return connection.respond(200,filedata)
+	elif(request.path != "/"):
+		return connection.respond(404,"File Not Found")
 
 
 	return None
