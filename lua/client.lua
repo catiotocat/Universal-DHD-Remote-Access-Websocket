@@ -1,6 +1,6 @@
 -- This program was designed to run inside of CraftOS-PC
 -- You can download CraftOS-PC from https://www.craftos-pc.cc/
-local programVersion = "2.8.1"
+local programVersion = "2.8.2"
 
 if not term then --Check if the program is running inside CraftOS-PC
 	print("This program was designed to run inside of CraftOS-PC")
@@ -189,8 +189,18 @@ local function init()
 	if config.allowUpdates then
 		--new update function
 		print("Checking for Updates...")
-		local ws,err = http.websocket(config.wsURL)
-		if not ws then
+		local url = config.wsURL
+		if string.sub(url,-1,-1) ~= "/" then
+			url = url.."/"
+		end
+		if string.sub(url,1,3) == "ws:" then
+			url = "http://"..string.sub(url,6,-1)
+		else
+			url = "https://"..string.sub(url,7,-1)
+		end
+		url = url.."client.lua"
+		local response,err = http.get(url)
+		if not response then
 			printError("Update Failed")
 			printError(err)
 			if argStates.update then
@@ -199,17 +209,9 @@ local function init()
 			end
 			return
 		end
-		ws.receive(1)
-		ws.send("-UPDATE")
-		local fileConts, fail = ws.receive(5)
+		local fileConts = response.readAll()
 		local success = false
-		if not fileConts then
-			printError(fail)
-			if argStates.update then
-				programVars.isRunning = false
-				programVars.noResetTerminal = true
-			end
-		elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+		if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 			--parse file
 			local start1,start2 = string.find(fileConts,"local programVersion = \"")
 			local end1,end2 = string.find(fileConts,"\"\n",start2)
@@ -238,7 +240,7 @@ local function init()
 				settings.save()
 				success = true
 			end
-			-- sleep(5)
+			sleep(1)
 		else
 			printError(fileConts)
 			if argStates.update then
@@ -246,8 +248,6 @@ local function init()
 				programVars.noResetTerminal = true
 			end
 		end
-		print("Waiting for connection to close...")
-		os.pullEvent("websocket_closed")
 		if success then
 			programVars.isRunning = false
 			programVars.noResetTerminal = true
