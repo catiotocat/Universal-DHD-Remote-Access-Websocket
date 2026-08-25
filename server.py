@@ -531,13 +531,30 @@ async def handler(websocket):
 	else:
 		await websocket.close()
 
+async def handleRequest(connection,request):
+	print(request.path)
+	# for i in request.headers.raw_items():
+	# 	print(i)
+	if(request.path == "/installer.lua"):
+		file = open(installerFilePath)
+		filedata = file.read()
+		file.close()
+		return connection.respond(200,filedata)
+	elif(request.path == "/client.lua"):
+		file = open(luaFilePath)
+		filedata = file.read()
+		file.close()
+		return connection.respond(200,filedata)
+
+
+	return None
 
 async def main():
 	loop = asyncio.get_running_loop()
 	stop = loop.create_future()
 	port = int(os.environ.get("PORT","8059"))
 	print(datetime.now().strftime("%Y-%m-%d %H:%M:%S")+" | ","Starting server on port "+str(port))
-	async with serve(handler,"",port):
+	async with serve(handler,"",port,process_request=handleRequest):
 		await stop
 
 if __name__=="__main__":

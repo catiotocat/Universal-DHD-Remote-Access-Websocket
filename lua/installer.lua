@@ -9,16 +9,9 @@ if not term then --Check if the program is running inside CraftOS-PC
 	return
 end
 
--- This program is in dire need of a rewrite.
--- Said rewrite will be in-progress on the dev branch
-
-local function readInput()
-	return read()
-end
-
 -- define settings variables
 settings.define("udhdRemoteAccess.accessKey",{
-	description="Access Key for the webocket server", 
+	description="Access Key for the webocket server. Use ';' to specify multiple keys.", 
 	default = "public", 
 	type="string"
 })
@@ -37,441 +30,365 @@ settings.define("udhdRemoteAccess.apiKey",{
 	default = "", 
 	type="string"
 })
+settings.define("udhdRemoteAccess.installPath",{
+    description="The filepath at which the program was last installed. This is set automatically when downloading the program from the server.",
+    default = nil,
+    type="string"
+})
 settings.save() --save all changes to the computer settings
 
-local colorBG = colors.black
-local colorText = colors.white
-local colorHeader = colors.yellow
-local colorOptionBorder = colors.yellow
-local colorOptionSymbol = colors.white
-local colorOptionsText = colors.white
-local colorOptionsDefaultIndicatorBorder = colors.yellow
-local colorOptionsDefaultIndicatorText = colors.white
-local colorError = colors.red
-local colorPromptText = colors.lightGray
-local colorPrompt = colors.yellow
+-- Settings:
+-- Websocket Server URL
+-- Access Key
+-- Stargate Network API Key
+-- Program Install Path
 
-local function settingPrompt(headers, current, options, prompts)
-	local valid = true
-	repeat
-		local generatedOptionInfo = {
-			default = nil
-		}
-		for i=1,#headers do
-			term.setTextColor(headers[i].color)
-			print(headers[i].text)
+local strings = {
+    ws = {
+        title = "Setting Websocket URL",
+        null = "Not Set",
+        description = "This is the url of the Universal DHD Remote Access Server. The client program and the Universal DHD must be connected to the same server in order to communicate."
+    },
+    key = {
+        title = "Setting Access Key(s)",
+        null = "public",
+        description = "In order for you to be able to access a Universal DHD, you must have it's access key set here. If you want to set multiple keys for the client program, use ';' to separate entries."
+    },
+    api = {
+        title = "Setting Stargate Network API Key",
+        null = "Not Set",
+        description = "This is an optional setting that allows a gate network admin to provide an API key to view hidden Stargates in the Cross-Session list. If you are not an admin, you do not need to set this value."
+    },
+    path = {
+        title = "Setting Install Path",
+        null = "Not Set",
+        description = "This is where the client program will be downloaded on the computer. This can be anywhere, so long as it isn't read-only. It is recommended that you use \".lua\" as the file extension."
+    }
+}
 
-		end
-		if current then
-			term.setTextColor(current.color1)
-			term.write(current.text1)
-			term.setTextColor(current.color2)
-			print(current.text2)
-		end
-		for i=1,#options do
-			local character = string.upper(options[i].custom_char or tostring(i-1))
-			if options[i].is_default then
-				generatedOptionInfo.default = options[i]
-			end
-			generatedOptionInfo[character] = options[i]
-			term.setTextColor(colorOptionBorder)
-			term.write("[")
-			term.setTextColor(colorOptionSymbol)
-			term.write(character)
-			term.setTextColor(colorOptionBorder)
-			term.write("] ")
-			term.setTextColor(colorOptionsText)
-			term.write(options[i].option)
-			if options[i].is_default then
-				term.setTextColor(colorOptionsDefaultIndicatorBorder)
-				term.write(" (")
-				term.setTextColor(colorOptionsDefaultIndicatorText)
-				term.write("default")
-				term.setTextColor(colorOptionsDefaultIndicatorBorder)
-				term.write(")")
-				
-			end
-			print("")
-		end
+local programState = {
+    page = "main",
+    text = "",
+    cursorPos = 0
+}
 
-		-- cancel install option
-		term.setTextColor(colorOptionBorder)
-		term.write("[")
-		term.setTextColor(colorOptionSymbol)
-		term.write("X")
-		term.setTextColor(colorOptionBorder)
-		term.write("] ")
-		term.setTextColor(colorOptionsText)
-		print("Cancel Installation")
+local function drawPage()
+    term.setCursorPos(1,1)
+    term.setBackgroundColor(colors.black)
+    term.clear()
+    term.setTextColor(colors.yellow)
+    local xsize,ysize = term.getSize()
+    print("Universal DHD Remote Access Client Installer")
+    term.setTextColor(colors.white)
+    if programState.page == "main" then
+        term.setCursorBlink(false)
+        local installReady = true
+        term.setTextColor(colors.lightGray)
+        print("Use the arrow keys and the ENTER key to navigate.")
 
-		for i=1,#prompts do
-			term.setTextColor(prompts[i].color)
-			print(prompts[i].text)
-		end
-		--prompt here
+        term.setCursorPos(1,4)
+        term.setTextColor(colors.white)
+        print("Websocket URL")
+        if programState.cursorPos == 0 then
+            term.setBackgroundColor(colors.white)
+        else
+            term.setBackgroundColor(colors.lightGray)
+        end
+        term.clearLine()
+        term.setTextColor(colors.black)
+        local text = settings.get("udhdRemoteAccess.websocketUrl", "") or ""
+        if text == "" then
+            term.setTextColor(colors.gray)
+            text = "Not Set"
+            installReady = false
+        end
+        if #text > xsize then
+            text = string.sub(text,1,xsize-1).."\187"
+        end
+        term.write(text)
+        term.setTextColor(colors.white)
+        term.setBackgroundColor(colors.black)
 
-		if not valid then
-			local x,y = term.getCursorPos()
-			term.setCursorPos(1,y+1)
-			term.setTextColor(colorError)
-			print("Sorry, your response was not recognized.")
-			term.setTextColor(colorText)
-			print("Please try again.")
-			term.setCursorPos(x,y)
-		end
-		valid = true
+        term.setCursorPos(1,7)
+        term.setTextColor(colors.white)
+        print("Access Key(s)")
+        if programState.cursorPos == 1 then
+            term.setBackgroundColor(colors.white)
+        else
+            term.setBackgroundColor(colors.lightGray)
+        end
+        term.clearLine()
+        term.setTextColor(colors.black)
+        local text = settings.get("udhdRemoteAccess.accessKey", "") or ""
+        if text == "" then
+            term.setTextColor(colors.gray)
+            text = "public"
+        end
+        if #text > xsize then
+            text = string.sub(text,1,xsize-1).."\187"
+        end
+        term.write(text)
+        term.setTextColor(colors.white)
+        term.setBackgroundColor(colors.black)
+        
+        term.setCursorPos(1,10)
+        term.setTextColor(colors.white)
+        print("Stargate Network API Key (Optional)")
+        if programState.cursorPos == 2 then
+            term.setBackgroundColor(colors.white)
+        else
+            term.setBackgroundColor(colors.lightGray)
+        end
+        term.clearLine()
+        term.setTextColor(colors.black)
+        local text = settings.get("udhdRemoteAccess.apiKey", "") or ""
+        if text == "" then
+            term.setTextColor(colors.gray)
+            text = "Not Set"
+        end
+        if #text > xsize then
+            text = string.sub(text,1,xsize-1).."\187"
+        end
+        term.write(text)
+        term.setTextColor(colors.white)
+        term.setBackgroundColor(colors.black)
+        
+        term.setCursorPos(1,13)
+        term.setTextColor(colors.white)
+        print("Install Path")
+        if programState.cursorPos == 3 then
+            term.setBackgroundColor(colors.white)
+        else
+            term.setBackgroundColor(colors.lightGray)
+        end
+        term.clearLine()
+        term.setTextColor(colors.black)
+        local text = settings.get("udhdRemoteAccess.installPath", "") or ""
+        if text == "" then
+            term.setTextColor(colors.gray)
+            text = "Not Set"
+            installReady = false
+        end
+        if #text > xsize then
+            text = string.sub(text,1,xsize-1).."\187"
+        end
+        term.write(text)
+        term.setTextColor(colors.white)
+        term.setBackgroundColor(colors.black)
 
-		term.setTextColor(colorPrompt)
-		term.write("> ")
-		-- read code will be here
-		local readValue = string.upper(read())
+        term.setCursorPos(2,16)
+        term.setBackgroundColor(colors.lightGray)
+        term.setTextColor(colors.black)
+        local text = " Install "
+        if installReady then
+            term.setBackgroundColor(colors.green)
+            term.setTextColor(colors.white)
+        end
+        if programState.cursorPos == 4 then
+            text = ">Install<"
+        end
+        term.write(text)
 
-		local optionRef
-		if readValue == "" and generatedOptionInfo.default then
-			optionRef = generatedOptionInfo.default
-		elseif generatedOptionInfo[readValue] then
-			optionRef = generatedOptionInfo[readValue]
-		elseif readValue == "X" then
-			optionRef = "ExitCheck"
-		end
-		
-		if optionRef then
-			if type(optionRef) == "table" then
-				if optionRef.func then
-					
-				end
+        term.setCursorPos(2,18)
+        term.setBackgroundColor(colors.red)
+        term.setTextColor(colors.black)
+        local text = " Exit "
+        if programState.cursorPos == 5 then
+            text = ">Exit<"
+        end
+        term.write(text)
+        
+        term.setBackgroundColor(colors.black)
+        term.setTextColor(colors.white)
+    else
+        -- all other pages go here since they all work the same way
+
+        term.setCursorPos(1,3)
+        term.setTextColor(colors.white)
+        print(strings[programState.page].title)
+
+        term.setTextColor(colors.lightGray)
+        term.setCursorPos(1,4)
+        print("Press ENTER when finished")
+
+        term.setCursorPos(1,6)
+        term.setTextColor(colors.lightGray)
+        print(strings[programState.page].description)
+
+        term.setCursorPos(1,5)
+        term.setBackgroundColor(colors.white)
+        term.setTextColor(colors.black)
+        term.clearLine()
+        if programState.text == "" then
+            term.setTextColor(colors.gray)
+            term.write(strings[programState.page].null)
+            term.setCursorPos(1,5)
+            term.setTextColor(colors.black)
+            term.setCursorBlink(true)
+        else
+            if #programState.text >= xsize then
+				term.write("\171")
+				term.write(string.sub(programState.text,-(xsize-2)))
 			else
-
+				term.write(programState.text)
 			end
-		else
-			--not recognized
-			valid = false
+			term.setCursorBlink(true)
+        end
+    end
 
-		end
-
-	until valid
 end
 
-local function inputUrl()
-	term.setTextColor(colorPrompt)
-	term.clearLine()
-	print("Please enter the websocket URL.")
-	term.setTextColor(colorHeader)
-	term.clearLine()
-	term.write("> ")
-	term.setTextColor(colorText)
-	wsURL = readInput()
+drawPage()
+-- read()
+
+local running = true
+local exitType = 0
+while running do
+    local event = {os.pullEventRaw()} --will switch to raw once terminate is implemented properly
+    if event[1] == "key" then
+        if programState.page == "main" then
+            if event[2] == keys.up then
+                if programState.cursorPos > 0 then
+                    programState.cursorPos = programState.cursorPos - 1
+                end
+            elseif event[2] == keys.down then
+                if programState.cursorPos < 5 then
+                    programState.cursorPos = programState.cursorPos + 1
+                end
+            elseif event[2] == keys.enter then
+                if programState.cursorPos == 0 then
+                    programState.page = "ws"
+                    programState.text = settings.get("udhdRemoteAccess.websocketUrl", "") or ""
+                elseif programState.cursorPos == 1 then
+                    programState.page = "key"
+                    programState.text = settings.get("udhdRemoteAccess.accessKey", "") or ""
+                elseif programState.cursorPos == 2 then
+                    programState.page = "api"
+                    programState.text = settings.get("udhdRemoteAccess.apiKey", "") or ""
+                elseif programState.cursorPos == 3 then
+                    programState.page = "path"
+                    programState.text = settings.get("udhdRemoteAccess.installPath", "") or ""
+                elseif programState.cursorPos == 4 then
+                    local url = settings.get("udhdRemoteAccess.websocketUrl") or ""
+                    local path = settings.get("udhdRemoteAccess.installPath") or ""
+                    if url ~= "" and path ~= "" then
+                        running = false
+                        exitType = 1 --run install
+                    end
+                elseif programState.cursorPos == 5 then
+                    running = false
+                end
+            end
+        else
+            --all other pages run here.
+            if event[2] == keys.backspace then
+                programState.text = string.sub(programState.text,1,-2)
+            elseif event[2] == keys.enter then
+                if programState.page == "ws" then
+                    if programState.text == "" then
+                        settings.unset("udhdRemoteAccess.websocketUrl")
+                    else
+                        settings.set("udhdRemoteAccess.websocketUrl", programState.text)
+                    end
+                elseif programState.page == "key" then
+                    if programState.text == "" then
+                        settings.unset("udhdRemoteAccess.accessKey")
+                    else
+                        settings.set("udhdRemoteAccess.accessKey", programState.text)
+                    end
+                elseif programState.page == "api" then
+                    if programState.text == "" then
+                        settings.unset("udhdRemoteAccess.apiKey")
+                    else
+                        settings.set("udhdRemoteAccess.apiKey", programState.text)
+                    end
+                elseif programState.page == "path" then
+                    if programState.text == "" then
+                        settings.unset("udhdRemoteAccess.installPath")
+                    else
+                        settings.set("udhdRemoteAccess.installPath", programState.text)
+                    end
+                end
+                settings.save()
+                programState.page = "main"
+            end
+        end
+    elseif event[1] == "char" or event[1] == "paste" then
+        if programState.page ~= "main" then
+            programState.text = programState.text..event[2]
+        end
+    elseif event[1] == "terminate" then
+        running = false
+        exitType = -1
+    end
+    drawPage()
+
 end
 
---[[
-	example options list
-	{
-		{
-			is_default = true,
-			option = "ws://localhost:8059",
-			custom_char = "0",
-			func = function() end,
-			has_extra_prompt = false,
-		}
-	}
-
-]]--
-
-
-term.setBackgroundColor(colorBG)
-term.setTextColor(colorText)
-term.clear()
+term.setTextColor(colors.white)
+term.setBackgroundColor(colors.black)
 term.setCursorPos(1,1)
-
-local wsURL
-local valid = true
-local reset = false
-repeat
-	reset = false
-	term.setTextColor(colorHeader)
-	print("Universal DHD Remote Access Client Installer")
-	term.setTextColor(colorText)
-	print("Please select a websocket URL to use.")
-	term.write("Currently Set To: ")
-	term.setTextColor(colorPrompt)
-	print(settings.get("udhdRemoteAccess.websocketUrl"))
-	term.setTextColor(colorText)
-	print("0: wss://catio-api.merith.xyz/ (Default)")
-	print("1: ws://localhost:8059/")
-	print("C: Custom URL")
-	print("L: Do Not Change")
-	print("X: Cancel Installation")
-	term.setTextColor(colorPrompt)
-	print("Enter the letter/number of your selection and press enter.")
-	print("Leave blank to use the default setting.")
-	term.setTextColor(colorHeader)
-	term.write("> ")
-	if not valid then
-		local x,y = term.getCursorPos()
-		term.setCursorPos(1,y+1)
-		term.setTextColor(colorError)
-		print("Sorry, your response was not recognized.")
-		term.setTextColor(colorText)
-		print("Please try again.")
-		term.setCursorPos(x,y)
-	end
-	valid = true
-	term.setTextColor(colorText)
-	local response = string.upper(readInput())
-	if response == "0" or response == "" then
-		wsURL = "wss://catio-api.merith.xyz/"
-	elseif response == "1" then
-		wsURL = "ws://localhost:8059/"
-	elseif response == "C" then
-		term.setTextColor(colorPrompt)
-		term.clearLine()
-		print("Please enter the websocket URL.")
-		term.setTextColor(colorHeader)
-		term.clearLine()
-		term.write("> ")
-		term.setTextColor(colorText)
-		wsURL = readInput()
-	elseif response == "L" then
-	elseif response == "X" then
-		reset = true
-		term.clear()
-		term.setCursorPos(1,1)
-		term.setTextColor(colorHeader)
-		print("Universal DHD Remote Access Client Installer")
-		term.setTextColor(colorText)
-		print("Would you like to cancel the installation?")
-		term.setTextColor(colorHeader)
-		term.write("y/n> ")
-		term.setTextColor(colorText)
-		response = readInput()
-		if string.lower(response) == "y" then
-			break
-		else
-			term.clear()
-			term.setCursorPos(1,1)
-		end
-	else
-		term.clear()
-		term.setCursorPos(1,1)
-		valid = false
-	end
-until valid and not reset
-if reset then 
-	printError("Exiting...")
-	return
-end
-
-if wsURL then
-	settings.set("udhdRemoteAccess.websocketUrl",wsURL)
-	settings.save()
-end
-
 term.clear()
-term.setCursorPos(1,1)
+if exitType == -1 then
+    printError("Terminated")
+elseif exitType == 1 then
+    local fname = settings.get("udhdRemoteAccess.installPath")
+    if string.sub(fname,1,1) ~= "/" then
+        fname = "/"..fname
+    end
+    if fs.isReadOnly(fname) then
+        printError("Cannot download to "..fname)
+        printError("Path is Read Only")
+        return
+    end
+    print("Downloading "..fname)
+    local ws,err = http.websocket(settings.get("udhdRemoteAccess.websocketUrl"))
+    if not ws then 
+        printError("Download Failed")
+        printError(err)
+        print("Please try again later.")
+        return
+    end
+    ws.receive(1)
+    ws.send("-UPDATE")
+    local fileConts, fail = ws.receive(5)
+    local success = false
+    if not fileConts then
+        printError(fail)
+        print("Please try again later.")
+    elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+        --parse file
+        local start1,start2 = string.find(fileConts,"local programVersion = \"")
+        local end1,end2 = string.find(fileConts,"\"\n",start2)
+        local readVersion = string.sub(fileConts,start2+1,end1-1)
+        local validChars = "0123456789."
+        local fileValid = true
+        for i=1,#readVersion do
+            if not string.find(validChars,string.sub(readVersion,i,i)) then
+                fileValid = false
+            end
+        end
+        if not fileValid then
+            printError("Update Failed")
+            printError("Bad program file from server")
+            print("Please try again later.")
+        else
+            local f = fs.open(fname,"w")
+            f.write(fileConts)
+            f.close()
+            print("Download Completed")
+            print("Version: "..readVersion)
+            success = true
+        end
+    else
+        printError(fileConts)
+        print("Please try again later.")
+    end
+    print("Closing connection...")
+    pcall(ws.close)
+    if success then
+        print()
+        print("Program is now ready to use!")
+    end
 
-local wsKey
-valid = true
-repeat
-	reset = false
-	term.setTextColor(colorHeader)
-	print("Universal DHD Remote Access Client Installer")
-	term.setTextColor(colorText)
-	print("Please select an access key to use.")
-	term.write("Currently Set To: ")
-	term.setTextColor(colorPrompt)
-	print(settings.get("udhdRemoteAccess.accessKey"))
-	term.setTextColor(colorText)
-	print("0: public (Default)")
-	print("C: Custom Access Key")
-	print("L: Do Not Change")
-	print("X: Cancel Installation")
-	term.setTextColor(colorPrompt)
-	print("Enter the letter/number of your selection and press enter.")
-	print("Leave blank to use the default setting.")
-	term.setTextColor(colorHeader)
-	term.write("> ")
-	if not valid then
-		local x,y = term.getCursorPos()
-		term.setCursorPos(1,y+1)
-		term.setTextColor(colorError)
-		print("Sorry, your response was not recognized.")
-		term.setTextColor(colorText)
-		print("Please try again.")
-		term.setCursorPos(x,y)
-	end
-	valid = true
-	term.setTextColor(colorText)
-	local response = string.upper(readInput())
-	if response == "0" or response == "" then
-		wsKey = "public"
-	elseif response == "C" then
-		term.setTextColor(colorPrompt)
-		term.clearLine()
-		print("Please enter the access key.")
-		term.setTextColor(colorHeader)
-		term.clearLine()
-		term.write("> ")
-		term.setTextColor(colorText)
-		wsKey = readInput()
-	elseif response == "L" then
-	elseif response == "X" then
-		reset = true
-		term.clear()
-		term.setCursorPos(1,1)
-		term.setTextColor(colorHeader)
-		print("Universal DHD Remote Access Client Installer")
-		term.setTextColor(colorText)
-		print("Would you like to cancel the installation?")
-		term.setTextColor(colorHeader)
-		term.write("y/n> ")
-		term.setTextColor(colorText)
-		response = readInput()
-		if string.lower(response) == "y" then
-			break
-		else
-			term.clear()
-			term.setCursorPos(1,1)
-		end
-	else
-		term.clear()
-		term.setCursorPos(1,1)
-		valid = false
-	end
-until valid and not reset
-if reset then 
-	printError("Exiting...")
-	return
 end
-
-if wsKey then
-	settings.set("udhdRemoteAccess.accessKey",wsKey)
-	settings.save()
-end
-
-term.clear()
-term.setCursorPos(1,1)
-
-
-local fname
-valid = true
-repeat
-	reset = false
-	term.setTextColor(colorHeader)
-	print("Universal DHD Remote Access Client Installer")
-	term.setTextColor(colorText)
-	print("Please select a filename to use.")
-	print("Filenames must have the \".lua\" file extension.")
-	term.setTextColor(colorText)
-	print("0: udhdRemoteAccess.lua (default)")
-	print("1: client.lua")
-	print("C: Custom File Name")
-	print("X: Cancel Installation")
-	term.setTextColor(colorPrompt)
-	print("Enter the letter/number of your selection and press enter.")
-	print("Leave blank to use the default setting.")
-	term.setTextColor(colorHeader)
-	term.write("> ")
-	if not valid then
-		local x,y = term.getCursorPos()
-		term.setCursorPos(1,y+1)
-		term.setTextColor(colorError)
-		print("Sorry, your response was not recognized.")
-		term.setTextColor(colorText)
-		print("Please try again.")
-		term.setCursorPos(x,y)
-	end
-	valid = true
-	term.setTextColor(colorText)
-	local response = string.upper(readInput())
-	if response == "0" or response == "" then
-		fname = "udhdRemoteAccess.lua"
-	elseif response == "1" then
-		fname = "client.lua"
-	elseif response == "C" then
-		local valid = true
-		repeat
-			term.setTextColor(colorPrompt)
-			term.clearLine()
-			if valid then
-				print("Please enter the file name.")
-			else
-				valid = true
-			end
-			term.setTextColor(colorHeader)
-			term.clearLine()
-			term.write("> ")
-			term.setTextColor(colorText)
-			fname = readInput()
-			if string.sub(fname,-4,-1) ~= ".lua" then
-				term.setTextColor(colorPrompt)
-				print("The filename must have the \".lua\" file extension.")
-				print("Please try again.")
-				valid = false
-			end
-		until valid
-	elseif response == "X" then
-		reset = true
-		term.clear()
-		term.setCursorPos(1,1)
-		term.setTextColor(colorHeader)
-		print("Universal DHD Remote Access Client Installer")
-		term.setTextColor(colorText)
-		print("Would you like to cancel the installation?")
-		term.setTextColor(colorHeader)
-		term.write("y/n> ")
-		term.setTextColor(colorText)
-		response = readInput()
-		if string.lower(response) == "y" then
-			break
-		else
-			term.clear()
-			term.setCursorPos(1,1)
-		end
-	else
-		term.clear()
-		term.setCursorPos(1,1)
-		valid = false
-	end
-until valid and not reset
-if reset then 
-	printError("Exiting...")
-	return
-end
-
-
-
-term.setTextColor(colorHeader)
-print("Universal DHD Remote Access Client Installer")
-term.setTextColor(colorText)
-print("Settings have been saved.")
-
-print("Downloading "..fname)
-local ws,err = http.websocket(settings.get("udhdRemoteAccess.websocketUrl"))
-if not ws then 
-	printError("Download Failed")
-	printError(err)
-	print("Please try again later.")
-	return
-end
-ws.receive(1)
-ws.send("-UPDATE")
-local fileConts, fail = ws.receive(5)
-local success = false
-if not fileConts then
-	printError(fail)
-	print("Please try again later.")
-	return
-elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
-	local f = fs.open(fname,"w")
-	f.write(fileConts)
-	f.close()
-	print("Download Completed")
-	success = true
-else
-	printError(fileConts)
-	print("Please try again later.")
-	return
-end
-print("Waiting for connection to close...")
-os.pullEvent("websocket_closed")
-print("Program is now ready to use!")
