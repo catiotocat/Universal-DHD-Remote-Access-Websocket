@@ -210,6 +210,7 @@ local function init()
 			return
 		end
 		local fileConts = response.readAll()
+    	response.close()
 		local success = false
 		if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
 			--parse file

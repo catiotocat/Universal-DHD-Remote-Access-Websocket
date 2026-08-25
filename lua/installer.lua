@@ -342,21 +342,29 @@ elseif exitType == 1 then
         return
     end
     print("Downloading "..fname)
-    local ws,err = http.websocket(settings.get("udhdRemoteAccess.websocketUrl"))
-    if not ws then 
+
+    local url = settings.get("udhdRemoteAccess.websocketUrl")
+    if string.sub(url,-1,-1) ~= "/" then
+        url = url.."/"
+    end
+    if string.sub(url,1,3) == "ws:" then
+        url = "http://"..string.sub(url,6,-1)
+    else
+        url = "https://"..string.sub(url,7,-1)
+    end
+    url = url.."client.lua"
+    local response,err = http.get(url)
+		
+    if not response then 
         printError("Download Failed")
         printError(err)
         print("Please try again later.")
         return
     end
-    ws.receive(1)
-    ws.send("-UPDATE")
-    local fileConts, fail = ws.receive(5)
+    local fileConts = response.readAll()
+    response.close()
     local success = false
-    if not fileConts then
-        printError(fail)
-        print("Please try again later.")
-    elseif string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
+    if string.sub(fileConts,1,#"ERROR:")~="ERROR:" then
         --parse file
         local start1,start2 = string.find(fileConts,"local programVersion = \"")
         local end1,end2 = string.find(fileConts,"\"\n",start2)
@@ -384,8 +392,6 @@ elseif exitType == 1 then
         printError(fileConts)
         print("Please try again later.")
     end
-    print("Closing connection...")
-    pcall(ws.close)
     if success then
         print()
         print("Program is now ready to use!")
